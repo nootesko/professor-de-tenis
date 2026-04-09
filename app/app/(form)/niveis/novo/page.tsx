@@ -1,0 +1,64 @@
+"use client";
+import { FormPage, FormSection, Input, AvatarUpload, useFormValidation, validators as V } from "@/components/ui";
+import { useStore } from "@/lib/store";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+export default function NovoNivelPage() {
+  const router = useRouter();
+  const { addNivel } = useStore();
+  const [imagem, setImagem] = useState<string | undefined>(undefined);
+
+  const { values, fieldProps, isValid, validateAll, setValues } = useFormValidation(
+    { nome: "", descricao: "", cor: "#edbe16", pontosMin: "0", pontosMax: "100" },
+    {
+      nome: { validators: [V.required(), V.minLen(2)] },
+      descricao: { validators: [V.required()] },
+      pontosMin: { validators: [V.required(), V.numRange(0, 99999)] },
+      pontosMax: { validators: [V.required(), V.numRange(0, 99999)] },
+    }
+  );
+
+  const submit = () => {
+    if (!validateAll()) return;
+    addNivel({
+      id: "n" + Date.now(),
+      nome: values.nome,
+      descricao: values.descricao,
+      cor: values.cor,
+      pontosMin: Number(values.pontosMin),
+      pontosMax: Number(values.pontosMax),
+      imagem,
+    });
+    router.push("/niveis");
+  };
+
+  return (
+    <FormPage
+      title="Cadastrar nível"
+      backHref="/niveis"
+      onCancel={() => router.push("/niveis")}
+      onSubmit={submit}
+      submitLabel="Cadastrar nível"
+      canSubmit={isValid}
+    >
+      <FormSection title="Dados do Nível">
+        <AvatarUpload value={imagem} onChange={setImagem} alt="Bola" size={96} />
+        <p className="-mt-2 text-center text-[11px] text-ink-500">
+          Envie uma foto da bola (opcional). Sem foto, será usada a cor escolhida abaixo.
+        </p>
+        <div className="flex items-center justify-center gap-4">
+          <span className="h-12 w-12 rounded-full ring-2 ring-white shadow" style={{ background: values.cor }} />
+          <label className="rounded-pill border border-line bg-white px-5 py-2 text-sm font-semibold text-ink-700">
+            Selecionar cor
+            <input type="color" value={values.cor} onChange={(e) => setValues({ ...values, cor: e.target.value })} className="ml-2 h-5 w-8 cursor-pointer align-middle" />
+          </label>
+        </div>
+        <Input label="Nome" required placeholder="Bola Amarela" {...fieldProps("nome")} />
+        <Input label="Descrição" required placeholder="Nível" {...fieldProps("descricao")} />
+        <Input label="Pontos mínimos" required type="number" min={0} {...fieldProps("pontosMin")} />
+        <Input label="Pontos máximos" required type="number" min={0} {...fieldProps("pontosMax")} />
+      </FormSection>
+    </FormPage>
+  );
+}
