@@ -24,6 +24,9 @@ export { StarRating } from './StarRating';
 export { Badge } from './Badge';
 export { LevelBadge } from './LevelBadge';
 export { EmptyState } from './EmptyState';
+export { NotFoundState } from './NotFoundState';
+export { SearchField, norm } from './SearchField';
+export { StatGrid, StatCard } from './StatCard';
 
 // --- Menus & dialogs ---
 export { KebabMenu } from './KebabMenu';
@@ -31,6 +34,8 @@ export { ConfirmDialog } from './ConfirmDialog';
 
 // --- Page chrome ---
 export { PageHeader } from './PageHeader';
+export { PanelPage } from './PanelPage';
+export { Section, ListRow, InfoRow } from './Section';
 export { FormPage } from './FormPage';
 export { FormSection } from './FormSection';
 export { BrandMark } from './BrandMark';

@@ -1,6 +1,8 @@
 "use client";
 import { FormPage, FormSection, StarRating } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
+import { toLocalISODate } from "@/lib/date";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "@/components/Toast";
@@ -8,7 +10,7 @@ import { toast } from "@/components/Toast";
 export default function NovaAvaliacaoPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { alunos, criterios, addAvaliacao } = useStore();
+  const { alunos, criterios, addAvaliacao } = useStore(useShallow((s) => ({ alunos: s.alunos, criterios: s.criterios, addAvaliacao: s.addAvaliacao })));
   const aluno = alunos.find((a) => a.id === id);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [obs, setObs] = useState("");
@@ -30,7 +32,7 @@ export default function NovaAvaliacaoPage() {
     addAvaliacao({
       id: "av" + Date.now(),
       alunoId: aluno.id,
-      data: new Date().toISOString().slice(0, 10),
+      data: toLocalISODate(new Date()),
       scores,
       observacoes: obs.trim() || undefined,
     });

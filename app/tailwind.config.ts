@@ -27,13 +27,15 @@ const config: Config = {
           500: "#788d88",
           300: "#b9c2bd",
         },
-        line: "#e0e5ed",
+        line: { DEFAULT: "rgba(16,40,35,0.08)", strong: "rgba(16,40,35,0.14)" },
+        canvas: "#f4f6f5",
+        soft: "#f8faf9",
       },
       fontFamily: {
         sans: ["var(--font-dmsans)", "system-ui", "sans-serif"],
         display: ["var(--font-archivo)", "system-ui", "sans-serif"],
       },
-      borderRadius: { card: "16px", input: "12px", pill: "999px" },
+      borderRadius: { card: "20px", panel: "16px", input: "12px", pill: "999px", dialog: "28px" },
       boxShadow: {
         card: "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06)",
         soft: "0 4px 24px rgba(48,103,93,0.08)",

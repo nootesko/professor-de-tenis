@@ -1,5 +1,6 @@
 "use client";
 import { FormPage, FormSection, Input, Select, Avatar, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -8,7 +9,7 @@ import { HORARIOS } from "@/lib/horarios";
 
 export default function NovaTurmaPage() {
   const router = useRouter();
-  const { addTurma, niveis, professores, alunos } = useStore();
+  const { addTurma, niveis, professores, alunos } = useStore(useShallow((s) => ({ addTurma: s.addTurma, niveis: s.niveis, professores: s.professores, alunos: s.alunos })));
   const [alunosIds, setAlunosIds] = useState<string[]>([]);
   const [busca, setBusca] = useState("");
 
@@ -97,7 +98,7 @@ export default function NovaTurmaPage() {
         {matriculados.length === 0 ? (
           <p className="text-sm text-ink-500">Nenhum aluno adicionado. Selecione abaixo.</p>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
             {matriculados.map((a) => (
               <div key={a.id} className="flex items-center gap-3 rounded-card border border-line bg-white p-2.5 transition-all hover:border-brand">
                 <Avatar src={a.avatar} alt={a.nome} size={36} />

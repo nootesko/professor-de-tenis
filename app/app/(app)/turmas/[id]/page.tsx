@@ -1,85 +1,94 @@
 "use client";
-import { PageHeader, Card, Button, Avatar, Badge } from "@/components/ui";
-import { useStore } from "@/lib/store";
-import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Clock, Calendar, GraduationCap, X } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState } from "react";
+import { Pencil, Clock, Calendar, GraduationCap, X, Users, Star, ClipboardCheck } from "lucide-react";
+import { PageHeader, PanelPage, Section, ListRow, InfoRow, StatGrid, StatCard, Avatar, ConfirmDialog, EmptyState, NotFoundState } from "@/components/ui";
+import { useStore, selectTurmas, selectAlunos, selectProfessores, selectNiveis, selectAulas } from "@/lib/store";
+import { toLocalISODate } from "@/lib/date";
 import { toast } from "@/components/Toast";
 
 export default function TurmaDetalhePage() {
   const { id } = useParams<{ id: string }>();
-  const { turmas, alunos, professores, niveis, assignAlunoToTurma } = useStore();
+  const turmas = useStore(selectTurmas);
+  const alunos = useStore(selectAlunos);
+  const professores = useStore(selectProfessores);
+  const niveis = useStore(selectNiveis);
+  const aulas = useStore(selectAulas);
+  const assignAlunoToTurma = useStore((s) => s.assignAlunoToTurma);
+  const [removerId, setRemoverId] = useState<string | null>(null);
+
   const turma = turmas.find((t) => t.id === id);
-  if (!turma) return <div>Turma não encontrada</div>;
-  const lista = alunos.filter((a) => turma.alunosIds.includes(a.id));
+  if (!turma) return <NotFoundState title="Turma não encontrada" backHref="/turmas" backLabel="Voltar para Turmas" />;
+  const lista = alunos.filter((a) => turma.alunosIds.includes(a.id)).sort((a, b) => a.nome.localeCompare(b.nome));
   const prof = professores.find((p) => p.id === turma.professorId);
   const nivel = niveis.find((n) => n.id === turma.nivelId);
+  const aulasDaTurma = aulas.filter((au) => au.turmaId === turma.id).length;
+  const alvo = lista.find((a) => a.id === removerId);
 
   return (
-    <>
+    <PanelPage width="readable">
       <PageHeader
+        back={{ href: "/turmas", label: "Turmas" }}
         title={turma.nome}
-        crumbs={["DASHBOARD", "TURMAS", turma.nome.toUpperCase()]}
+        description={`${turma.diaSemana} · ${turma.horario}`}
         actions={
-          <Link href={`/turmas/${turma.id}/editar`}>
-            <Button variant="outline"><Pencil size={14} /> Editar Turma</Button>
-          </Link>
+          <>
+            <Link href={`/turmas/${turma.id}/editar`} className="btn-outline"><Pencil size={14} /> Editar</Link>
+            <Link href={`/aulas/${turma.id}/finalizar?data=${toLocalISODate(new Date())}`} className="btn-primary"><ClipboardCheck size={16} /> Fazer chamada</Link>
+          </>
         }
       />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="p-6 lg:col-span-1">
-          <h3 className="font-display text-base font-bold text-brand">Informações</h3>
-          <div className="mt-4 space-y-3 text-sm text-ink-700">
-            <div className="flex items-center gap-2"><Calendar size={14} className="text-brand" /> {turma.diaSemana}</div>
-            <div className="flex items-center gap-2"><Clock size={14} className="text-brand" /> {turma.horario}</div>
-            {prof && (
-              <Link href={`/professores/${prof.id}`} className="flex items-center gap-2 text-ink-700 hover:text-brand">
-                <GraduationCap size={14} className="text-brand" /> {prof.nome}
-              </Link>
-            )}
-            {nivel && <Badge color="lime">{nivel.nome}</Badge>}
-          </div>
-          <div className="mt-4 rounded-card bg-brand-mint2 p-3 text-xs text-brand">
-            A presença e a avaliação dos alunos são feitas ao <strong>finalizar a aula</strong> pelo Dashboard.
-          </div>
-        </Card>
-
-        <Card className="p-6 lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-display text-base font-bold text-brand">Alunos matriculados</h3>
-            <Badge color="lime">{lista.length} alunos</Badge>
-          </div>
-          {lista.length === 0 ? (
-            <p className="text-sm text-ink-500">Nenhum aluno matriculado. Use Editar Turma para adicionar.</p>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {lista.map((a) => (
-                <div key={a.id} className="flex items-center gap-3 rounded-card border border-line bg-white p-3 transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-card">
-                  <Link href={`/alunos/${a.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                    <Avatar src={a.avatar} alt={a.nome} size={40} />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium text-ink-900">{a.nome}</div>
-                      <div className="text-xs text-ink-500">{a.pontos} pts</div>
-                    </div>
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const r = assignAlunoToTurma(a.id, null);
-                      if (r.ok) toast.success(`${a.nome} removido da turma`);
-                      else toast.error(r.error || "Erro");
-                    }}
-                    aria-label={`Remover ${a.nome} da turma`}
-                    className="grid h-8 w-8 place-items-center rounded-full bg-red-50 text-red-600 transition hover:bg-red-100"
-                  >
-                    <X size={14} />
-                  </button>
+      <StatGrid>
+        <StatCard label="Alunos" value={lista.length} hint={`${turma.vagas ?? "—"} vagas`} />
+        <StatCard label="Aulas dadas" value={aulasDaTurma} />
+        <StatCard label="Nível" value={nivel?.nome ?? "—"} />
+        <StatCard label="Média de pontos" value={lista.length ? Math.round(lista.reduce((a, b) => a + b.pontos, 0) / lista.length) : "—"} />
+      </StatGrid>
+      <Section flush title="Informações">
+        <InfoRow label="Dia" icon={<Calendar size={14} />}>{turma.diaSemana}</InfoRow>
+        <InfoRow label="Horário" icon={<Clock size={14} />}>{turma.horario}</InfoRow>
+        <InfoRow label="Professor" icon={<GraduationCap size={14} />}>
+          {prof ? <Link href={`/professores/${prof.id}`} className="text-brand hover:underline">{prof.nome}</Link> : "Sem professor"}
+        </InfoRow>
+        <InfoRow label="Nível" icon={<Star size={14} />}>{nivel?.nome ?? "—"}</InfoRow>
+      </Section>
+      <Section flush title="Alunos matriculados" description="Presença e pontos são lançados em “Fazer chamada”.">
+        {lista.length === 0 ? (
+          <EmptyState compact icon={Users} title="Nenhum aluno matriculado" action={<Link href={`/turmas/${turma.id}/editar`} className="btn-outline">Adicionar alunos</Link>} />
+        ) : (
+          lista.map((a) => (
+            <ListRow key={a.id} className="transition-colors hover:bg-soft">
+              <Link href={`/alunos/${a.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+                <Avatar src={a.avatar} alt="" size={40} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold text-ink-900">{a.nome}</div>
+                  <div className="text-xs tabular-nums text-ink-500">{a.pontos} pts</div>
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
-    </>
+              </Link>
+              <button type="button" onClick={() => setRemoverId(a.id)} aria-label={`Remover ${a.nome} da turma`}
+                className="grid h-9 w-9 place-items-center rounded-full text-ink-500 transition hover:bg-red-50 hover:text-red-600">
+                <X size={16} />
+              </button>
+            </ListRow>
+          ))
+        )}
+      </Section>
+      <ConfirmDialog
+        open={!!removerId}
+        title="Remover da turma?"
+        message={`${alvo?.nome ?? "O aluno"} sai desta turma, mas continua cadastrado.`}
+        confirmLabel="Remover"
+        onCancel={() => setRemoverId(null)}
+        onConfirm={() => {
+          if (removerId) {
+            const r = assignAlunoToTurma(removerId, null);
+            if (r.ok) toast.success("Aluno removido da turma");
+            else toast.error(r.error || "Não foi possível remover");
+          }
+          setRemoverId(null);
+        }}
+      />
+    </PanelPage>
   );
 }

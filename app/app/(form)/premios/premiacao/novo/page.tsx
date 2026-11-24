@@ -1,19 +1,21 @@
 "use client";
 import { FormPage, FormSection, Input, Select, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
+import { toLocalISODate } from "@/lib/date";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "@/components/Toast";
 
 function brToISO(br: string): string {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(br);
-  if (!m) return new Date().toISOString().slice(0, 10);
+  if (!m) return toLocalISODate(new Date());
   return `${m[3]}-${m[2]}-${m[1]}`;
 }
 
 export default function NovaPremiacaoPage() {
   const router = useRouter();
-  const { alunos, premios, addPremiacao } = useStore();
+  const { alunos, premios, addPremiacao } = useStore(useShallow((s) => ({ alunos: s.alunos, premios: s.premios, addPremiacao: s.addPremiacao })));
   const [submitting, setSubmitting] = useState(false);
 
   const { values, fieldProps, isValid, validateAll, setValues } = useFormValidation(

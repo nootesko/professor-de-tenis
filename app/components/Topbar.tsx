@@ -1,9 +1,13 @@
 "use client";
-import { Search, ChevronDown, X, User, GraduationCap, Users, Trophy } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, X, User, Users, Trophy, LogOut } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
+import { useAuth, ADMIN_PROFILE } from "@/lib/auth";
+import { BrandMark } from "@/components/ui";
+import { ROUTE_LABELS } from "@/components/nav";
 
 type Result = {
   id: string;
@@ -19,7 +23,9 @@ const GROUP_ORDER: Result["group"][] = ["Alunos", "Professores", "Turmas", "Nív
 
 export default function Topbar() {
   const router = useRouter();
-  const { alunos, professores, turmas, niveis } = useStore();
+  const { alunos, professores, turmas, niveis } = useStore(
+    useShallow((s) => ({ alunos: s.alunos, professores: s.professores, turmas: s.turmas, niveis: s.niveis })),
+  );
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -105,13 +111,13 @@ export default function Topbar() {
     if (results.length === 0) {
       return (
         <div className="px-4 py-8 text-center text-sm text-ink-500">
-          Nenhum resultado para <span className="font-medium text-brand">"{q}"</span>
+          Nenhum resultado para <span className="font-medium text-brand">“{q}”</span>
         </div>
       );
     }
     return grouped.map(({ group, items }) => (
       <div key={group}>
-        <div className="sticky top-0 bg-brand-mint px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-brand">
+        <div className="sticky top-0 bg-soft px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-brand">
           {group}
         </div>
         {items.map((r) => {
@@ -126,6 +132,7 @@ export default function Topbar() {
               className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${active ? "bg-brand-mint2" : "hover:bg-brand-mint2/60"}`}
             >
               {r.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={r.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
               ) : (
                 <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-mint2 text-brand">
@@ -136,7 +143,7 @@ export default function Topbar() {
                 <div className="truncate text-sm font-medium text-ink-900">{r.label}</div>
                 {r.sub && <div className="truncate text-xs text-ink-500">{r.sub}</div>}
               </div>
-              <ChevronDown size={14} className="-rotate-90 text-ink-300" />
+              <ChevronRight size={14} className="text-ink-300" />
             </button>
           );
         })}
@@ -145,33 +152,38 @@ export default function Topbar() {
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-20 items-center justify-between gap-4 bg-brand-mint px-6 md:px-10">
-      <div className="font-display text-sm font-semibold text-brand">Dashboards</div>
-      <div ref={wrapRef} className="relative hidden max-w-md flex-1 md:block">
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line-strong bg-white px-4 sm:px-6 lg:px-8">
+      <Link href="/dashboard" aria-label="Ir para o Dashboard" className="md:hidden"><BrandMark compact /></Link>
+      <Breadcrumb />
+      <div ref={wrapRef} className="relative ml-auto hidden w-full max-w-sm md:block">
         <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
         <input
           value={q}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Pesquisar alunos, professores, turmas..."
-          className="w-full rounded-pill border border-line bg-white py-2.5 pl-10 pr-10 text-sm placeholder:text-ink-300 focus:border-brand focus:outline-none"
+          role="combobox"
+          aria-expanded={open && !!q.trim()}
+          aria-controls="busca-resultados"
+          aria-label="Pesquisar alunos, professores, turmas e níveis"
+          placeholder="Pesquisar..."
+          className="h-10 w-full rounded-pill border border-line-strong bg-soft pl-10 pr-10 text-sm placeholder:text-ink-300 focus:border-brand focus:bg-white focus:outline-none"
         />
         {q && (
           <button
             type="button"
             onClick={() => { setQ(""); setOpen(false); }}
-            className="absolute right-3 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-ink-400 hover:bg-brand-mint2 hover:text-brand"
-            aria-label="Limpar"
+            className="absolute right-3 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-ink-500 hover:bg-brand-mint2 hover:text-brand"
+            aria-label="Limpar busca"
           >
             <X size={14} />
           </button>
         )}
 
         {open && q.trim() && (
-          <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 max-h-[70vh] overflow-y-auto rounded-card border border-line bg-white shadow-soft animate-scale-in">
+          <div id="busca-resultados" className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 max-h-[70vh] overflow-y-auto rounded-panel border border-line-strong bg-white shadow-soft animate-scale-in">
             {renderResults()}
-            <div className="border-t border-line px-4 py-2 text-[10px] text-ink-400">
+            <div className="border-t border-line px-4 py-2 text-[10px] text-ink-500">
               <kbd className="rounded border border-line bg-white px-1">↑</kbd>{" "}
               <kbd className="rounded border border-line bg-white px-1">↓</kbd> navegar ·{" "}
               <kbd className="rounded border border-line bg-white px-1">Enter</kbd> abrir ·{" "}
@@ -180,25 +192,23 @@ export default function Topbar() {
           </div>
         )}
       </div>
-      {/* Mobile search trigger */}
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-label="Pesquisar"
-        className="ml-auto grid h-10 w-10 place-items-center rounded-full bg-white text-brand shadow-card transition hover:scale-105 active:scale-95 md:hidden"
+        className="ml-auto grid h-10 w-10 place-items-center rounded-full text-brand hover:bg-soft md:hidden"
       >
         <Search size={18} />
       </button>
 
-      {/* Mobile fullscreen overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white animate-fade-in md:hidden">
+        <div className="fixed inset-0 z-50 flex flex-col bg-white animate-fade-in md:hidden" role="dialog" aria-modal="true" aria-label="Pesquisar">
           <div className="flex items-center gap-2 border-b border-line px-3 py-3">
             <button
               type="button"
               onClick={() => { setMobileOpen(false); setQ(""); }}
-              aria-label="Fechar"
-              className="grid h-10 w-10 place-items-center rounded-full text-brand hover:bg-brand-mint2"
+              aria-label="Fechar busca"
+              className="grid h-10 w-10 place-items-center rounded-full text-brand hover:bg-soft"
             >
               <X size={20} />
             </button>
@@ -209,35 +219,91 @@ export default function Topbar() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={onKeyDown}
+                aria-label="Pesquisar alunos, professores, turmas e níveis"
                 placeholder="Pesquisar..."
-                className="w-full rounded-pill border border-line bg-white py-2.5 pl-10 pr-10 text-sm placeholder:text-ink-300 focus:border-brand focus:outline-none"
+                className="h-11 w-full rounded-pill border border-line-strong bg-white pl-10 pr-10 text-base placeholder:text-ink-300 focus:border-brand focus:outline-none"
               />
-              {q && (
-                <button
-                  type="button"
-                  onClick={() => setQ("")}
-                  className="absolute right-3 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-ink-400 hover:bg-brand-mint2 hover:text-brand"
-                  aria-label="Limpar"
-                >
-                  <X size={14} />
-                </button>
-              )}
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {renderResults()}
-          </div>
+          <div className="flex-1 overflow-y-auto">{renderResults()}</div>
         </div>
       )}
 
-      <Link href="/perfil" className="ml-2 flex items-center gap-2 rounded-pill bg-white px-3 py-1.5 shadow-card">
-        <img src="https://i.pravatar.cc/150?img=12" alt="" className="h-8 w-8 rounded-full" />
-        <div className="hidden text-xs leading-tight md:block">
-          <div className="text-ink-500">Bem vindo,</div>
-          <div className="font-semibold text-brand">Prof Cássio</div>
-        </div>
-        <ChevronDown size={14} className="text-ink-500" />
-      </Link>
+      <UserMenu />
     </header>
+  );
+}
+
+function Breadcrumb() {
+  const path = usePathname();
+  const { alunos, professores, turmas, niveis } = useStore(
+    useShallow((s) => ({ alunos: s.alunos, professores: s.professores, turmas: s.turmas, niveis: s.niveis })),
+  );
+  const segs = path.split("/").filter(Boolean);
+  const names: Record<string, { id: string; nome: string }[]> = { alunos, professores, turmas, niveis, aulas: turmas };
+  const parts = segs.map((seg, i) => {
+    const entity = names[segs[i - 1]]?.find((e) => e.id === seg);
+    return { label: entity?.nome ?? ROUTE_LABELS[seg] ?? seg, href: "/" + segs.slice(0, i + 1).join("/") };
+  });
+  return (
+    <nav aria-label="Você está em" className="hidden min-w-0 items-center gap-1.5 truncate text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-500 md:flex">
+      <Link href="/dashboard" className="hover:text-brand">Início</Link>
+      {parts.map((p, i) => (
+        <span key={p.href} className="flex min-w-0 items-center gap-1.5">
+          <span className="text-brand-green">/</span>
+          {i === parts.length - 1 ? (
+            <span aria-current="page" className="truncate text-ink-900">{p.label}</span>
+          ) : (
+            <span className="truncate">{p.label}</span>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+function UserMenu() {
+  const router = useRouter();
+  const logout = useAuth((s) => s.logout);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Menu da conta"
+        className="flex items-center gap-1.5 rounded-pill p-1 pr-2 transition hover:bg-soft"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={ADMIN_PROFILE.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+        <ChevronDown size={14} className="text-ink-500" />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-[calc(100%+8px)] z-30 w-64 rounded-panel border border-line-strong bg-white p-2 shadow-soft animate-scale-in">
+          <div className="px-3 py-2">
+            <div className="text-sm font-semibold text-ink-900">{ADMIN_PROFILE.nome}</div>
+            <div className="truncate text-xs text-ink-500">{ADMIN_PROFILE.email}</div>
+          </div>
+          <div className="my-1 h-px bg-line" />
+          <Link role="menuitem" href="/perfil" onClick={() => setOpen(false)} className="flex h-10 items-center gap-2 rounded-input px-3 text-sm font-medium text-ink-700 hover:bg-soft">
+            <User size={16} /> Meu perfil
+          </Link>
+          <button role="menuitem" type="button" onClick={() => { logout(); router.push("/login"); }} className="flex h-10 w-full items-center gap-2 rounded-input px-3 text-sm font-medium text-red-600 hover:bg-red-50">
+            <LogOut size={16} /> Sair
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

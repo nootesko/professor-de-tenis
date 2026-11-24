@@ -1,12 +1,13 @@
 "use client";
 import { FormPage, FormSection, Input, AvatarUpload, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function NovoProfessorPage() {
   const router = useRouter();
-  const { addProfessor } = useStore();
+  const { addProfessor } = useStore(useShallow((s) => ({ addProfessor: s.addProfessor })));
 
   const { values, fieldProps, isValid, validateAll } = useFormValidation(
     {

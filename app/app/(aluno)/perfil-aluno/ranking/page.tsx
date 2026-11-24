@@ -1,5 +1,6 @@
 "use client";
 import { Card, Avatar } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { getAlunoSession } from "@/lib/aluno-creds";
 import { Crown, Medal, Lock } from "lucide-react";
@@ -9,7 +10,7 @@ import { useRouter } from "next/navigation";
 
 export default function RankingAlunoPage() {
   const router = useRouter();
-  const { alunos, niveis } = useStore();
+  const { alunos, niveis } = useStore(useShallow((s) => ({ alunos: s.alunos, niveis: s.niveis })));
   const [filtroNivel, setFiltroNivel] = useState<string>("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);

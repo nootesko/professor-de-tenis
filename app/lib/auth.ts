@@ -35,3 +35,12 @@ export function assertOwnership(sessionUserId: string | null | undefined, params
   if (!sessionUserId || !paramsId) return false;
   return sessionUserId === paramsId;
 }
+
+/** Perfil exibido do administrador (mock — única fonte para topbar, saudação e perfil). */
+export const ADMIN_PROFILE = {
+  nome: 'Cássio Lima',
+  email: 'cassio@noot.com.br',
+  telefone: '(11) 99999-1111',
+  especialidade: 'Técnica',
+  avatar: 'https://i.pravatar.cc/150?img=12',
+};

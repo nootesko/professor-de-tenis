@@ -1,5 +1,6 @@
 "use client";
 import { FormPage, FormSection, Input, Select, AvatarUpload, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -8,7 +9,7 @@ import { toast } from "@/components/Toast";
 export default function EditarAlunoPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { alunos, niveis, updateAluno, emailExists } = useStore();
+  const { alunos, niveis, updateAluno, emailExists } = useStore(useShallow((s) => ({ alunos: s.alunos, niveis: s.niveis, updateAluno: s.updateAluno, emailExists: s.emailExists })));
   const aluno = alunos.find((a) => a.id === id);
   const [submitting, setSubmitting] = useState(false);
   const [emailErr, setEmailErr] = useState<string | null>(null);

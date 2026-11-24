@@ -1,76 +1,87 @@
 "use client";
-import { PageHeader, Card, Button, KebabMenu, Avatar, ConfirmDialog, Badge } from "@/components/ui";
-import { useStore, selectAlunos, selectNiveis } from "@/lib/store";
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Search, Plus, Pencil, Trash2, Eye } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plus, Pencil, Trash2, Users, ChevronRight } from "lucide-react";
+import { PageHeader, PanelPage, Section, ListRow, KebabMenu, Avatar, ConfirmDialog, Badge, EmptyState, SearchField, norm } from "@/components/ui";
+import { useStore, selectAlunos, selectNiveis } from "@/lib/store";
+import { toast } from "@/components/Toast";
+
+type Filtro = "todos" | "ativo" | "inativo";
 
 export default function AlunosPage() {
-  const router = useRouter();
   const alunos = useStore(selectAlunos);
   const niveis = useStore(selectNiveis);
   const deleteAluno = useStore((s) => s.deleteAluno);
   const [q, setQ] = useState("");
+  const [filtro, setFiltro] = useState<Filtro>("todos");
   const [delId, setDelId] = useState<string | null>(null);
-  const filtered = alunos.filter((a) => a.nome.toLowerCase().includes(q.toLowerCase()));
+
+  const nivelById = useMemo(() => new Map(niveis.map((n) => [n.id, n])), [niveis]);
+  const filtered = useMemo(
+    () =>
+      alunos
+        .filter((a) => (filtro === "todos" || a.status === filtro) && (norm(a.nome).includes(norm(q)) || norm(a.email).includes(norm(q))))
+        .sort((a, b) => a.nome.localeCompare(b.nome)),
+    [alunos, q, filtro],
+  );
+  const alvo = alunos.find((a) => a.id === delId);
+
   return (
-    <>
+    <PanelPage>
       <PageHeader
-        title="Lista de Alunos"
-        crumbs={["DASHBOARD", "ALUNOS"]}
-        actions={
-          <Link href="/alunos/novo"><Button><Plus size={16} /> Cadastrar novo aluno</Button></Link>
-        }
+        title="Alunos"
+        description={`${alunos.length} cadastrados`}
+        actions={<Link href="/alunos/novo" className="btn-primary"><Plus size={16} /> Novo aluno</Link>}
       />
-      <Card className="p-6">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="relative max-w-sm flex-1">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar aluno" className="w-full rounded-pill border border-line bg-white py-2.5 pl-10 pr-4 text-sm focus:outline-none" />
+      <Section
+        flush
+        title={
+          <div className="flex gap-1" role="tablist" aria-label="Filtrar por status">
+            {(["todos", "ativo", "inativo"] as Filtro[]).map((f) => (
+              <button key={f} role="tab" aria-selected={filtro === f} type="button" onClick={() => setFiltro(f)}
+                className={`h-9 rounded-pill px-4 text-sm font-semibold capitalize transition-colors ${filtro === f ? "bg-brand-tint text-brand-dark" : "text-ink-500 hover:bg-soft"}`}>
+                {f === "todos" ? "Todos" : f === "ativo" ? "Ativos" : "Inativos"}
+              </button>
+            ))}
           </div>
-        </div>
-        {/* TODO: usar @tanstack/react-virtual quando lista passar de 100 itens (perf). */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((a) => {
-            const nivel = niveis.find((n) => n.id === a.nivelId);
+        }
+        action={<SearchField value={q} onChange={setQ} label="Buscar por nome ou e-mail" />}
+      >
+        {filtered.length === 0 ? (
+          <EmptyState compact icon={Users} title={q ? "Nenhum aluno encontrado" : "Nenhum aluno aqui"} description={q ? `Nada corresponde a "${q}".` : "Cadastre um aluno para começar."} />
+        ) : (
+          filtered.map((a) => {
+            const nivel = nivelById.get(a.nivelId);
             return (
-              <div
-                key={a.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => router.push(`/alunos/${a.id}`)}
-                onKeyDown={(e) => { if (e.key === "Enter") router.push(`/alunos/${a.id}`); }}
-                className="flex cursor-pointer items-center gap-3 rounded-card border border-line p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-card"
-              >
-                <Avatar src={a.avatar} alt={a.nome} size={48} />
-                <div className="min-w-0 flex-1">
-                  <div className="block truncate font-semibold text-ink-900">{a.nome}</div>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: nivel?.cor }} />
-                    <span className="text-xs text-ink-500">{nivel?.nome} · {a.pontos} pts</span>
+              <ListRow key={a.id} className="transition-colors hover:bg-soft">
+                <Link href={`/alunos/${a.id}`} className="flex min-w-0 flex-1 items-center gap-4 focus-visible:outline-none">
+                  <Avatar src={a.avatar} alt="" size={40} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-semibold text-ink-900">{a.nome}</div>
+                    <div className="flex items-center gap-1.5 truncate text-xs text-ink-500">
+                      <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: nivel?.cor }} />
+                      {nivel?.nome ?? "Sem nível"} · <span className="tabular-nums">{a.pontos} pts</span>
+                    </div>
                   </div>
-                </div>
-                <Badge color={a.status === "ativo" ? "lime" : "red"}>{a.status}</Badge>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <KebabMenu items={[
-                    { label: "Visualizar perfil", icon: <Eye size={14} />, href: `/alunos/${a.id}` },
-                    { label: "Editar", icon: <Pencil size={14} />, href: `/alunos/${a.id}/editar` },
-                    { label: "Excluir", icon: <Trash2 size={14} />, danger: true, onClick: () => setDelId(a.id) },
-                  ]} />
-                </div>
-              </div>
+                  <Badge color={a.status === "ativo" ? "lime" : "red"}>{a.status === "ativo" ? "Ativo" : "Inativo"}</Badge>
+                  <ChevronRight size={16} className="hidden shrink-0 text-ink-300 sm:block" />
+                </Link>
+                <KebabMenu label={`Ações de ${a.nome}`} items={[
+                  { label: "Editar", icon: <Pencil size={14} />, href: `/alunos/${a.id}/editar` },
+                  { label: "Excluir", icon: <Trash2 size={14} />, danger: true, onClick: () => setDelId(a.id) },
+                ]} />
+              </ListRow>
             );
-          })}
-        </div>
-      </Card>
+          })
+        )}
+      </Section>
       <ConfirmDialog
         open={!!delId}
         title="Excluir aluno?"
-        message="Esta ação não pode ser desfeita. O aluno será removido da lista."
+        message={`${alvo?.nome ?? "O aluno"} será removido, junto com o vínculo às turmas. Esta ação não pode ser desfeita.`}
         onCancel={() => setDelId(null)}
-        onConfirm={() => { if (delId) deleteAluno(delId); setDelId(null); }}
+        onConfirm={() => { if (delId) { deleteAluno(delId); toast.success("Aluno excluído"); } setDelId(null); }}
       />
-    </>
+    </PanelPage>
   );
 }

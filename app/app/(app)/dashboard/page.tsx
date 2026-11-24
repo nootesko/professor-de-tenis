@@ -1,258 +1,180 @@
 "use client";
-import { PageHeader, Card, AvatarGroup, Button } from "@/components/ui";
-import { useStore, selectTurmas, selectAlunos, selectProfessores, selectAulas } from "@/lib/store";
-import { Clock, ChevronRight, ChevronLeft, X, CheckCircle2, Pencil } from "lucide-react";
-import { DateRangePicker } from "@/components/DateRangePicker";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useMemo } from "react";
-
-const DIAS_SEMANA = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+import { useMemo, useState } from "react";
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, Layers, Plus, Users } from "lucide-react";
+import { AvatarGroup, Badge, EmptyState, ListRow, PageHeader, PanelPage, Section, StatCard, StatGrid } from "@/components/ui";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { useStore, selectTurmas, selectAlunos, selectProfessores, selectAulas } from "@/lib/store";
+import { ADMIN_PROFILE } from "@/lib/auth";
+import { DIAS_SEMANA, formatDate, fromLocalISODate, greeting, toLocalISODate } from "@/lib/date";
 
 export default function DashboardPage() {
   const turmas = useStore(selectTurmas);
   const alunos = useStore(selectAlunos);
   const professores = useStore(selectProfessores);
   const aulas = useStore(selectAulas);
-  const router = useRouter();
-  const today = new Date();
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
-  const [selectedDate, setSelectedDate] = useState<Date>(today);
-  const [profFiltro, setProfFiltro] = useState<string>("");
-  const [range, setRange] = useState<{ from: string; to: string }>({ from: "", to: "" });
 
-  const month = new Date(viewYear, viewMonth, 1)
-    .toLocaleString("pt-BR", { month: "long", year: "numeric" })
-    .toUpperCase();
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const hoje = toLocalISODate(new Date());
+  const [dia, setDia] = useState(hoje);
+  const [profFiltro, setProfFiltro] = useState("");
+  const [range, setRange] = useState({ from: "", to: "" });
 
-  const prevMonth = () => {
-    const m = viewMonth - 1;
-    if (m < 0) { setViewMonth(11); setViewYear(viewYear - 1); } else setViewMonth(m);
-  };
-  const nextMonth = () => {
-    const m = viewMonth + 1;
-    if (m > 11) { setViewMonth(0); setViewYear(viewYear + 1); } else setViewMonth(m);
+  const shiftDia = (delta: number) => {
+    const d = fromLocalISODate(dia);
+    d.setDate(d.getDate() + delta);
+    setDia(toLocalISODate(d));
   };
 
-  const turmasFiltradas = useMemo(() => {
-    const diaNome = DIAS_SEMANA[selectedDate.getDay()];
-    return turmas.filter((t) => {
-      const matchDia = t.diaSemana === diaNome;
-      const matchProf = !profFiltro || t.professorId === profFiltro;
-      return matchDia && matchProf;
-    });
-  }, [turmas, selectedDate, profFiltro]);
+  const alunosById = useMemo(() => new Map(alunos.map((a) => [a.id, a])), [alunos]);
+  const turmasById = useMemo(() => new Map(turmas.map((t) => [t.id, t])), [turmas]);
+  const profById = useMemo(() => new Map(professores.map((p) => [p.id, p])), [professores]);
 
-  const sameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const turmasDoDia = (iso: string) => {
+    const nome = DIAS_SEMANA[fromLocalISODate(iso).getDay()];
+    return turmas.filter((t) => t.diaSemana === nome);
+  };
+
+  const agenda = useMemo(
+    () =>
+      turmasDoDia(dia)
+        .filter((t) => !profFiltro || t.professorId === profFiltro)
+        .sort((a, b) => a.horario.localeCompare(b.horario)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [turmas, dia, profFiltro],
+  );
+
+  const finalizadas = useMemo(
+    () =>
+      aulas
+        .filter((au) => (!range.from || au.data >= range.from) && (!range.to || au.data <= range.to))
+        .sort((a, b) => b.finalizadaEm.localeCompare(a.finalizadaEm)),
+    [aulas, range],
+  );
+
+  const aulaFinalizada = (turmaId: string) => aulas.some((au) => au.turmaId === turmaId && au.data === dia);
+  const ativos = alunos.filter((a) => a.status === "ativo").length;
+
   return (
-    <>
+    <PanelPage>
       <PageHeader
-        title="Boa Tarde,"
-        crumbs={["Professor Cássio"]}
+        title={`${greeting()}, ${ADMIN_PROFILE.nome.split(" ")[0]}`}
+        description={formatDate(hoje, { weekday: "long", day: "2-digit", month: "long" })}
         actions={
-          <>
-            <Link href="/avaliacoes/novo"><Button variant="outline">+ Cadastrar Aula</Button></Link>
-            <Link href="/turmas/novo"><Button>+ Cadastrar nova turma</Button></Link>
-          </>
+          <Link href="/turmas/novo" className="btn-primary">
+            <Plus size={16} /> Nova turma
+          </Link>
         }
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <Card className="p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="text-sm font-semibold text-brand">
-              Aulas de {selectedDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
-            </div>
-            {profFiltro && (
-              <div className="text-xs text-ink-500">
-                Professor: <span className="font-medium text-brand">{professores.find((p) => p.id === profFiltro)?.nome}</span>
-              </div>
-            )}
-          </div>
-          {/* Desktop table */}
-          <div className="hidden md:block">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase text-ink-500">
-                  <th className="pb-3 font-medium">Horário</th>
-                  <th className="pb-3 font-medium">Turma</th>
-                  <th className="pb-3 font-medium">Alunos / Vagas</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {turmasFiltradas.length === 0 && (
-                  <tr><td colSpan={4} className="py-8 text-center text-sm text-ink-500">Nenhuma aula encontrada para os filtros selecionados.</td></tr>
-                )}
-                {turmasFiltradas.map((t) => {
-                  const ts = alunos.filter((a) => t.alunosIds.includes(a.id));
-                  return (
-                    <tr key={t.id} onClick={() => router.push(`/aulas/${t.id}/finalizar?data=${selectedDate.toISOString().slice(0,10)}`)} className="cursor-pointer border-t border-line hover:bg-brand-mint2/40">
-                      <td className="py-4">
-                        <div className="flex items-center gap-2 text-ink-700"><Clock size={14} className="text-brand" /> {t.horario}</div>
-                      </td>
-                      <td className="py-4 font-medium">{t.nome}</td>
-                      <td className="py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-ink-500">{ts.length}</span>
-                          <AvatarGroup srcs={ts.map((a) => a.avatar)} />
-                        </div>
-                      </td>
-                      <td className="py-4 text-right text-ink-300"><ChevronRight size={16} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {/* Mobile cards */}
-          <div className="space-y-2 md:hidden">
-            {turmasFiltradas.length === 0 && (
-              <div className="py-8 text-center text-sm text-ink-500">Nenhuma aula encontrada para os filtros selecionados.</div>
-            )}
-            {turmasFiltradas.map((t) => {
-              const ts = alunos.filter((a) => t.alunosIds.includes(a.id));
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => router.push(`/aulas/${t.id}/finalizar?data=${selectedDate.toISOString().slice(0,10)}`)}
-                  className="flex w-full items-center gap-3 rounded-card border border-line bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-card active:scale-[0.99]"
-                >
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-card bg-brand-mint2 text-brand">
-                    <Clock size={18} />
+
+      <StatGrid>
+        <StatCard label="Alunos ativos" value={ativos} hint={`${alunos.length} cadastrados`} icon={<Users size={16} />} />
+        <StatCard label="Turmas" value={turmas.length} hint={`${professores.length} professores`} icon={<Layers size={16} />} />
+        <StatCard label="Aulas hoje" value={turmasDoDia(hoje).length} icon={<CalendarDays size={16} />} />
+        <StatCard label="Aulas finalizadas" value={aulas.length} icon={<CheckCircle2 size={16} />} />
+      </StatGrid>
+
+      <Section
+        flush
+        title="Agenda do dia"
+        description="Toque em uma aula para fazer a chamada e pontuar os alunos."
+        action={
+          <select
+            value={profFiltro}
+            onChange={(e) => setProfFiltro(e.target.value)}
+            aria-label="Filtrar por professor"
+            className="h-10 rounded-pill border border-line-strong bg-white px-4 text-sm text-ink-700 focus:border-brand focus:outline-none"
+          >
+            <option value="">Todos os professores</option>
+            {professores.map((p) => (
+              <option key={p.id} value={p.id}>{p.nome}</option>
+            ))}
+          </select>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-2 bg-soft px-5 py-3 sm:px-6">
+          <button type="button" onClick={() => shiftDia(-1)} aria-label="Dia anterior" className="grid h-9 w-9 place-items-center rounded-full border border-line-strong bg-white hover:border-brand">
+            <ChevronLeft size={16} />
+          </button>
+          <input
+            type="date"
+            value={dia}
+            onChange={(e) => e.target.value && setDia(e.target.value)}
+            aria-label="Data da agenda"
+            className="h-9 rounded-pill border border-line-strong bg-white px-3 text-sm focus:border-brand focus:outline-none"
+          />
+          <button type="button" onClick={() => shiftDia(1)} aria-label="Próximo dia" className="grid h-9 w-9 place-items-center rounded-full border border-line-strong bg-white hover:border-brand">
+            <ChevronRight size={16} />
+          </button>
+          <span className="ml-1 text-sm font-medium capitalize text-ink-700">
+            {formatDate(dia, { weekday: "long", day: "2-digit", month: "long" })}
+          </span>
+          {dia !== hoje && (
+            <button type="button" onClick={() => setDia(hoje)} className="ml-auto text-sm font-semibold text-brand hover:underline">
+              Voltar para hoje
+            </button>
+          )}
+        </div>
+
+        {agenda.length === 0 ? (
+          <EmptyState compact icon={CalendarDays} title="Nenhuma aula neste dia" description={profFiltro ? "Tente remover o filtro de professor." : "Não há turmas programadas para este dia da semana."} />
+        ) : (
+          agenda.map((t) => {
+            const lista = t.alunosIds.map((id) => alunosById.get(id)).filter(Boolean) as typeof alunos;
+            const feita = aulaFinalizada(t.id);
+            return (
+              <Link key={t.id} href={`/aulas/${t.id}/finalizar?data=${dia}`} className="block transition-colors hover:bg-soft focus-visible:bg-soft focus-visible:outline-none">
+                <ListRow>
+                  <div className="flex w-16 shrink-0 items-center gap-1.5 text-sm font-semibold tabular-nums text-brand">
+                    <Clock size={14} /> {t.horario.split("-")[0]}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-semibold text-ink-900">{t.nome}</div>
-                    <div className="text-xs text-ink-500">{t.horario}</div>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <AvatarGroup srcs={ts.map((a) => a.avatar)} max={3} />
-                      <span className="text-[11px] text-ink-500">{ts.length} alunos</span>
-                    </div>
+                    <div className="truncate text-xs text-ink-500">{profById.get(t.professorId)?.nome ?? "Sem professor"} · {lista.length} alunos</div>
                   </div>
-                  <ChevronRight size={18} className="shrink-0 text-ink-300" />
-                </button>
-              );
-            })}
-          </div>
-        </Card>
-        <Card className="p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <button onClick={prevMonth} className="rounded p-1 transition hover:bg-brand-mint2 hover:scale-110 active:scale-95"><ChevronLeft size={16} /></button>
-            <div className="font-display text-sm font-bold text-brand">{month}</div>
-            <button onClick={nextMonth} className="rounded p-1 transition hover:bg-brand-mint2 hover:scale-110 active:scale-95"><ChevronRight size={16} /></button>
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-ink-500">
-            {["DOM","SEG","TER","QUA","QUI","SEX","SAB"].map((d) => <div key={d}>{d}</div>)}
-          </div>
-          <div className="mt-1 grid grid-cols-7 gap-1 text-center text-xs">
-            {Array.from({ length: firstDay }).map((_, i) => <div key={"e" + i} />)}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const d = i + 1;
-              const cellDate = new Date(viewYear, viewMonth, d);
-              const isToday = sameDay(cellDate, today);
-              const isSelected = sameDay(cellDate, selectedDate);
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setSelectedDate(cellDate)}
-                  aria-label={`Dia ${d}${isToday ? ", hoje" : ""}`}
-                  aria-current={isToday ? "date" : undefined}
-                  aria-pressed={isSelected}
-                  className={`grid aspect-square place-items-center rounded-full transition-all duration-150 hover:scale-110 ${
-                    isSelected ? "bg-brand text-white font-semibold shadow"
-                    : isToday ? "bg-brand-lime2 font-semibold text-brand-dark"
-                    : "text-ink-700 hover:bg-brand-mint2"
-                  }`}
-                >
-                  {d.toString().padStart(2, "0")}
-                </button>
-              );
-            })}
-          </div>
-          <div className="mt-4">
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-ink-500">Filtrar por professor</label>
-            <div className="flex items-center gap-2">
-              <select
-                value={profFiltro}
-                onChange={(e) => setProfFiltro(e.target.value)}
-                className="w-full rounded-pill border border-line bg-white px-4 py-2 text-xs text-ink-700 focus:border-brand focus:outline-none"
-              >
-                <option value="">Todos os professores</option>
-                {professores.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
-              </select>
-              {profFiltro && (
-                <button
-                  type="button"
-                  onClick={() => setProfFiltro("")}
-                  aria-label="Limpar filtro"
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-ink-500 transition hover:bg-brand-mint2 hover:text-brand"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Aulas Finalizadas */}
-      <Card className="mt-6 p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="flex items-center gap-2 font-display text-base font-bold text-brand">
-            <CheckCircle2 size={18} /> Aulas Finalizadas
-          </h3>
-          <div className="flex items-center gap-3">
-            <DateRangePicker from={range.from} to={range.to} onChange={setRange} />
-            <span className="text-xs text-ink-500">{aulas.length} no total</span>
-          </div>
-        </div>
-        {aulas.length === 0 ? (
-          <p className="py-8 text-center text-sm text-ink-500">
-            Nenhuma aula finalizada ainda. Clique em uma aula acima para iniciar a chamada.
-          </p>
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {aulas
-              .slice()
-              .filter((au) => (!range.from || au.data >= range.from) && (!range.to || au.data <= range.to))
-              .sort((a, b) => b.finalizadaEm.localeCompare(a.finalizadaEm))
-              .map((au) => {
-                const t = turmas.find((x) => x.id === au.turmaId);
-                if (!t) return null;
-                const presentes = Object.values(au.presenca).filter(Boolean).length;
-                const totalAlunos = t.alunosIds.length;
-                const dataFmt = new Date(au.data + "T00:00:00").toLocaleDateString("pt-BR", {
-                  day: "2-digit", month: "short", year: "numeric",
-                });
-                return (
-                  <button
-                    key={au.id}
-                    onClick={() => router.push(`/aulas/${au.turmaId}/finalizar?data=${au.data}`)}
-                    className="flex w-full items-center gap-3 rounded-card border border-line bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-card"
-                  >
-                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-card bg-brand-tint text-brand">
-                      <CheckCircle2 size={20} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-semibold text-ink-900">{t.nome}</div>
-                      <div className="text-xs text-ink-500">{dataFmt} · {t.horario}</div>
-                      <div className="mt-1 text-[11px] text-ink-500">
-                        Presença: <span className="font-semibold text-brand">{presentes}/{totalAlunos}</span>
-                      </div>
-                    </div>
-                    <Pencil size={14} className="shrink-0 text-ink-300" />
-                  </button>
-                );
-              })}
-          </div>
+                  <span className="hidden sm:block"><AvatarGroup srcs={lista.map((a) => a.avatar)} max={4} /></span>
+                  {feita ? <Badge color="lime">Finalizada</Badge> : <Badge>Pendente</Badge>}
+                  <ChevronRight size={16} className="shrink-0 text-ink-300" />
+                </ListRow>
+              </Link>
+            );
+          })
         )}
-      </Card>
-    </>
+      </Section>
+
+      <Section
+        flush
+        title="Aulas finalizadas"
+        description={`${finalizadas.length} ${finalizadas.length === 1 ? "aula" : "aulas"} no período`}
+        action={<DateRangePicker from={range.from} to={range.to} onChange={setRange} />}
+      >
+        {finalizadas.length === 0 ? (
+          <EmptyState compact icon={CheckCircle2} title="Nenhuma aula finalizada" description="Faça a chamada de uma aula na agenda acima para ela aparecer aqui." />
+        ) : (
+          finalizadas.map((au) => {
+            const t = turmasById.get(au.turmaId);
+            if (!t) return null;
+            const presentes = Object.values(au.presenca).filter(Boolean).length;
+            return (
+              <Link key={au.id} href={`/aulas/${au.turmaId}/finalizar?data=${au.data}`} className="block transition-colors hover:bg-soft">
+                <ListRow>
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-tint text-brand">
+                    <CheckCircle2 size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-semibold text-ink-900">{t.nome}</div>
+                    <div className="text-xs text-ink-500">{formatDate(au.data)} · {t.horario}</div>
+                  </div>
+                  <div className="text-right text-xs text-ink-500">
+                    Presença
+                    <div className="text-sm font-semibold tabular-nums text-brand">{presentes}/{t.alunosIds.length}</div>
+                  </div>
+                  <ChevronRight size={16} className="shrink-0 text-ink-300" />
+                </ListRow>
+              </Link>
+            );
+          })
+        )}
+      </Section>
+    </PanelPage>
   );
 }

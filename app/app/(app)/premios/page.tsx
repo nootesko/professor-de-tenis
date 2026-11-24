@@ -1,61 +1,82 @@
 "use client";
-import { PageHeader, Card, Button, KebabMenu, Avatar, ConfirmDialog } from "@/components/ui";
-import { useStore } from "@/lib/store";
 import Link from "next/link";
-import { Plus, Trophy, Trash2, Pencil } from "lucide-react";
 import { useState } from "react";
+import { Plus, Trophy, Trash2, Award } from "lucide-react";
+import { PageHeader, PanelPage, Section, ListRow, KebabMenu, Avatar, ConfirmDialog, EmptyState } from "@/components/ui";
+import { useStore, selectPremios, selectAlunos } from "@/lib/store";
+import { toast } from "@/components/Toast";
 
 export default function PremiosPage() {
-  const { premios, alunos, deletePremio } = useStore();
+  const premios = useStore(selectPremios);
+  const alunos = useStore(selectAlunos);
+  const deletePremio = useStore((s) => s.deletePremio);
   const [tab, setTab] = useState<"premios" | "ranking">("premios");
   const [delId, setDelId] = useState<string | null>(null);
   const ranking = [...alunos].sort((a, b) => b.pontos - a.pontos).slice(0, 10);
+  const lista = [...premios].sort((a, b) => a.pontosNecessarios - b.pontosNecessarios);
+  const alvo = premios.find((p) => p.id === delId);
 
   return (
-    <>
+    <PanelPage>
       <PageHeader
         title="Prêmios"
-        crumbs={["DASHBOARD","PRÊMIOS"]}
+        description="Recompensas por pontuação e ranking dos alunos."
         actions={
           <>
-            <Link href="/premios/premiacao/novo"><Button variant="outline">+ Premiação</Button></Link>
-            <Link href="/premios/novo"><Button><Plus size={16} /> Adicionar prêmio</Button></Link>
+            <Link href="/premios/premiacao/novo" className="btn-outline"><Award size={16} /> Premiar aluno</Link>
+            <Link href="/premios/novo" className="btn-primary"><Plus size={16} /> Novo prêmio</Link>
           </>
         }
       />
-      <div className="mb-4 inline-flex rounded-pill bg-white p-1 shadow-card">
-        <button onClick={() => setTab("premios")} className={`rounded-pill px-5 py-2 text-sm font-semibold ${tab === "premios" ? "bg-brand-lime2 text-brand-dark" : "text-ink-500"}`}>Prêmios</button>
-        <button onClick={() => setTab("ranking")} className={`rounded-pill px-5 py-2 text-sm font-semibold ${tab === "ranking" ? "bg-brand-lime2 text-brand-dark" : "text-ink-500"}`}>Ranking</button>
+      <div className="flex gap-1" role="tablist" aria-label="Visualização">
+        {([["premios", "Prêmios"], ["ranking", "Ranking"]] as const).map(([k, l]) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+            className={`h-10 rounded-pill px-5 text-sm font-semibold transition-colors ${tab === k ? "bg-brand-tint text-brand-dark" : "text-ink-500 hover:bg-white"}`}>
+            {l}
+          </button>
+        ))}
       </div>
       {tab === "premios" ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {premios.map((p) => (
-            <Card key={p.id} className="p-5 text-center">
-              <div className="flex justify-end"><KebabMenu items={[
-                { label: "Excluir", icon: <Trash2 size={14} />, danger: true, onClick: () => setDelId(p.id) },
-              ]} /></div>
-              <Trophy size={48} className="mx-auto text-brand-yellow" />
-              <div className="mt-3 font-display text-lg font-bold text-brand">{p.nome}</div>
-              <div className="text-xs text-ink-500">{p.descricao}</div>
-              <div className="mt-3 inline-block rounded-pill bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark">{p.pontosNecessarios} pts</div>
-            </Card>
-          ))}
-        </div>
+        <Section flush title="Prêmios disponíveis" description="Ordenados pela pontuação necessária.">
+          {lista.length === 0 ? (
+            <EmptyState compact icon={Trophy} title="Nenhum prêmio cadastrado" />
+          ) : (
+            lista.map((p) => (
+              <ListRow key={p.id}>
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-yellow-50 text-brand-yellow"><Trophy size={20} /></div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold text-ink-900">{p.nome}</div>
+                  {p.descricao && <div className="truncate text-xs text-ink-500">{p.descricao}</div>}
+                </div>
+                <span className="rounded-pill bg-brand-tint px-3 py-1 text-xs font-semibold tabular-nums text-brand-dark">{p.pontosNecessarios} pts</span>
+                <KebabMenu label={`Ações de ${p.nome}`} items={[
+                  { label: "Excluir", icon: <Trash2 size={14} />, danger: true, onClick: () => setDelId(p.id) },
+                ]} />
+              </ListRow>
+            ))
+          )}
+        </Section>
       ) : (
-        <Card className="p-6">
-          <div className="space-y-2">
-            {ranking.map((a, i) => (
-              <div key={a.id} className="flex items-center gap-3 rounded-card border border-line p-3">
-                <div className="grid h-8 w-8 place-items-center rounded-full bg-brand-tint font-bold text-brand-dark">{i + 1}</div>
-                <Avatar src={a.avatar} alt={a.nome} size={40} />
-                <div className="flex-1 font-medium">{a.nome}</div>
-                <div className="font-display text-lg font-bold text-brand">{a.pontos}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
+        <Section flush title="Top 10 alunos" description="Por pontuação acumulada.">
+          {ranking.map((a, i) => (
+            <Link key={a.id} href={`/alunos/${a.id}`} className="block transition-colors hover:bg-soft">
+              <ListRow>
+                <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold tabular-nums ${i < 3 ? "bg-brand-lime text-brand-dark" : "bg-soft text-ink-700"}`}>{i + 1}</div>
+                <Avatar src={a.avatar} alt="" size={40} />
+                <div className="min-w-0 flex-1 truncate font-medium text-ink-900">{a.nome}</div>
+                <div className="font-display text-lg font-bold tabular-nums text-brand">{a.pontos}</div>
+              </ListRow>
+            </Link>
+          ))}
+        </Section>
       )}
-      <ConfirmDialog open={!!delId} title="Excluir prêmio?" message="O prêmio será removido." onCancel={() => setDelId(null)} onConfirm={() => { if (delId) deletePremio(delId); setDelId(null); }} />
-    </>
+      <ConfirmDialog
+        open={!!delId}
+        title="Excluir prêmio?"
+        message={`${alvo?.nome ?? "O prêmio"} será removido, junto com as premiações já concedidas.`}
+        onCancel={() => setDelId(null)}
+        onConfirm={() => { if (delId) { deletePremio(delId); toast.success("Prêmio excluído"); } setDelId(null); }}
+      />
+    </PanelPage>
   );
 }

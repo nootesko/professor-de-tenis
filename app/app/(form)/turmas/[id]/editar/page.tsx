@@ -1,5 +1,6 @@
 "use client";
 import { FormPage, FormSection, Input, Select, Avatar, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -9,7 +10,7 @@ import { HORARIOS, slotFromHorario } from "@/lib/horarios";
 export default function EditarTurmaPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { turmas, niveis, professores, alunos, updateTurma } = useStore();
+  const { turmas, niveis, professores, alunos, updateTurma } = useStore(useShallow((s) => ({ turmas: s.turmas, niveis: s.niveis, professores: s.professores, alunos: s.alunos, updateTurma: s.updateTurma })));
   const turma = turmas.find((t) => t.id === id);
   const [alunosIds, setAlunosIds] = useState<string[]>(turma?.alunosIds ?? []);
   const [busca, setBusca] = useState("");
@@ -98,7 +99,7 @@ export default function EditarTurmaPage() {
         {matriculados.length === 0 ? (
           <p className="text-sm text-ink-500">Nenhum aluno matriculado ainda. Adicione abaixo.</p>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
             {matriculados.map((a) => (
               <div key={a.id} className="flex items-center gap-3 rounded-card border border-line bg-white p-2.5 transition-all hover:border-brand">
                 <Avatar src={a.avatar} alt={a.nome} size={36} />

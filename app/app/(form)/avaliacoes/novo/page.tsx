@@ -1,11 +1,12 @@
 "use client";
 import { FormPage, FormSection, Input, Select, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 
 export default function NovoCriterioPage() {
   const router = useRouter();
-  const { addCriterio } = useStore();
+  const { addCriterio } = useStore(useShallow((s) => ({ addCriterio: s.addCriterio })));
 
   const { values, fieldProps, isValid, validateAll, setValues } = useFormValidation(
     { nome: "", categoria: "Movimentos" as "Movimentos" | "Comportamento" | "Evolução" },

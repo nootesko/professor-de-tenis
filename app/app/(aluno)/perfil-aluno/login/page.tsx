@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import {
@@ -13,7 +14,7 @@ import { Trophy, Eye, EyeOff } from "lucide-react";
 export default function PerfilAlunoLoginPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const { alunoCreds } = useStore();
+  const { alunoCreds } = useStore(useShallow((s) => ({ alunoCreds: s.alunoCreds })));
   const authLogin = useAuth((s) => s.login);
   const [user, setUser] = useState(params.get("user") ?? "");
   const [senha, setSenha] = useState("");

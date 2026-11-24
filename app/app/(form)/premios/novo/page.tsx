@@ -1,11 +1,12 @@
 "use client";
 import { FormPage, FormSection, Input, Select, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 
 export default function NovoPremioPage() {
   const router = useRouter();
-  const { addPremio } = useStore();
+  const { addPremio } = useStore(useShallow((s) => ({ addPremio: s.addPremio })));
 
   const { values, fieldProps, isValid, validateAll, setValues } = useFormValidation(
     { nome: "", descricao: "", pontosNecessarios: "16", tipo: "medalha-pequena" },

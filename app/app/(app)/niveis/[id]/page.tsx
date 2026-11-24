@@ -1,40 +1,72 @@
 "use client";
-import { PageHeader, Card, Button, LevelBadge, Avatar } from "@/components/ui";
-import { useStore } from "@/lib/store";
-import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import { Pencil, Trash2, Users, ChevronRight } from "lucide-react";
+import { PageHeader, PanelPage, Section, ListRow, InfoRow, StatGrid, StatCard, LevelBadge, Avatar, Button, ConfirmDialog, EmptyState, NotFoundState } from "@/components/ui";
+import { useStore, selectNiveis, selectAlunos } from "@/lib/store";
+import { toast } from "@/components/Toast";
 
 export default function NivelDetalhePage() {
   const { id } = useParams<{ id: string }>();
-  const { niveis, alunos } = useStore();
+  const router = useRouter();
+  const niveis = useStore(selectNiveis);
+  const alunos = useStore(selectAlunos);
+  const deleteNivel = useStore((s) => s.deleteNivel);
+  const [confirm, setConfirm] = useState(false);
   const n = niveis.find((x) => x.id === id);
-  if (!n) return <div>Nível não encontrado</div>;
-  const lista = alunos.filter((a) => a.nivelId === n.id);
+  if (!n) return <NotFoundState title="Nível não encontrado" backHref="/niveis" backLabel="Voltar para Níveis" />;
+  const lista = alunos.filter((a) => a.nivelId === n.id).sort((a, b) => b.pontos - a.pontos);
+
   return (
-    <>
-      <PageHeader title={`Nível: ${n.nome}`} crumbs={["DASHBOARD","NÍVEIS",n.nome.toUpperCase()]} actions={
-        <Link href={`/niveis/${n.id}/editar`}><Button variant="outline">Editar</Button></Link>
-      } />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="p-6 lg:col-span-1">
-          <LevelBadge cor={n.cor} nome={n.nome} size={64} imagem={n.imagem} />
-          <p className="mt-3 text-sm text-ink-700">{n.descricao}</p>
-          <div className="mt-4 text-xs text-ink-500">Faixa: <strong className="text-ink-900">{n.pontosMin} - {n.pontosMax} pts</strong></div>
-          <Link href="/niveis"><Button variant="outline" className="mt-4">Voltar</Button></Link>
-        </Card>
-        <Card className="p-6 lg:col-span-2">
-          <h3 className="font-display text-lg font-bold text-brand">Alunos neste nível ({lista.length})</h3>
-          <div className="mt-4 space-y-2">
-            {lista.map((a) => (
-              <Link key={a.id} href={`/alunos/${a.id}`} className="flex items-center gap-3 rounded-card border border-line p-3 hover:bg-brand-mint2">
-                <Avatar src={a.avatar} alt={a.nome} size={40} />
-                <div className="flex-1 font-medium">{a.nome}</div>
-                <div className="text-xs text-ink-500">{a.pontos} pts</div>
-              </Link>
-            ))}
-          </div>
-        </Card>
-      </div>
-    </>
+    <PanelPage width="readable">
+      <PageHeader
+        back={{ href: "/niveis", label: "Níveis" }}
+        title={n.nome}
+        description={`${n.pontosMin}–${n.pontosMax} pontos`}
+        actions={
+          <>
+            <Button variant="ghost" className="text-red-600 hover:bg-red-50" onClick={() => setConfirm(true)}><Trash2 size={14} /> Excluir</Button>
+            <Link href={`/niveis/${n.id}/editar`} className="btn-outline"><Pencil size={14} /> Editar</Link>
+          </>
+        }
+      />
+      <StatGrid>
+        <StatCard label="Alunos" value={lista.length} />
+        <StatCard label="Pontos mín." value={n.pontosMin} />
+        <StatCard label="Pontos máx." value={n.pontosMax} />
+        <StatCard label="Média" value={lista.length ? Math.round(lista.reduce((a, b) => a + b.pontos, 0) / lista.length) : "—"} />
+      </StatGrid>
+      <Section flush title="Sobre o nível">
+        <ListRow>
+          <LevelBadge cor={n.cor} nome={n.nome} size={48} imagem={n.imagem} />
+        </ListRow>
+        <InfoRow label="Descrição">{n.descricao || "—"}</InfoRow>
+        <InfoRow label="Cor"><span className="inline-flex items-center gap-2"><span className="h-4 w-4 rounded-full border border-line-strong" style={{ background: n.cor }} />{n.cor}</span></InfoRow>
+      </Section>
+      <Section flush title="Alunos neste nível" description="Ordenados por pontuação.">
+        {lista.length === 0 ? (
+          <EmptyState compact icon={Users} title="Nenhum aluno neste nível" />
+        ) : (
+          lista.map((a) => (
+            <Link key={a.id} href={`/alunos/${a.id}`} className="block transition-colors hover:bg-soft">
+              <ListRow>
+                <Avatar src={a.avatar} alt="" size={40} />
+                <div className="min-w-0 flex-1 truncate font-semibold text-ink-900">{a.nome}</div>
+                <div className="text-sm tabular-nums text-ink-500">{a.pontos} pts</div>
+                <ChevronRight size={16} className="text-ink-300" />
+              </ListRow>
+            </Link>
+          ))
+        )}
+      </Section>
+      <ConfirmDialog
+        open={confirm}
+        title="Excluir nível?"
+        message={lista.length ? `${lista.length} aluno(s) estão neste nível e ficarão sem nível.` : "O nível será removido."}
+        onCancel={() => setConfirm(false)}
+        onConfirm={() => { deleteNivel(n.id); toast.success("Nível excluído"); router.push("/niveis"); }}
+      />
+    </PanelPage>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 // TODO: split steps em arquivos e importar via next/dynamic quando crescer
 import { FormPage, FormSection, Input, Select, AvatarUpload, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -37,7 +38,7 @@ function Stepper({ step }: { step: number }) {
 
 export default function CadastrarAlunoPage() {
   const router = useRouter();
-  const { addAluno, niveis, turmas, emailExists } = useStore();
+  const { addAluno, niveis, turmas, emailExists } = useStore(useShallow((s) => ({ addAluno: s.addAluno, niveis: s.niveis, turmas: s.turmas, emailExists: s.emailExists })));
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [submitting, setSubmitting] = useState(false);
 

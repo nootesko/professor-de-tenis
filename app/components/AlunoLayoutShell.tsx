@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { getAlunoSession } from "@/lib/aluno-creds";
 import { Crown, User, Trophy } from "lucide-react";
@@ -11,7 +12,7 @@ import AlunoLogoutButton from "@/components/AlunoLogoutButton";
 export default function AlunoLayoutShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const path = usePathname();
-  const { alunos } = useStore();
+  const { alunos } = useStore(useShallow((s) => ({ alunos: s.alunos })));
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -40,8 +41,8 @@ export default function AlunoLayoutShell({ children }: { children: React.ReactNo
   if (!sessionId) return null;
 
   return (
-    <div className="min-h-screen bg-brand-mint">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-line bg-white px-4 md:px-8">
+    <div className="min-h-screen bg-canvas">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-line-strong bg-white px-4 md:px-8">
         <div className="flex items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand">
             <Trophy size={18} className="text-brand-lime" />
@@ -74,7 +75,7 @@ export default function AlunoLayoutShell({ children }: { children: React.ReactNo
           <AlunoLogoutButton />
         </nav>
       </header>
-      <main className="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-10">{children}</main>
+      <main className="mx-auto max-w-3xl px-4 sm:px-6">{children}</main>
     </div>
   );
 }

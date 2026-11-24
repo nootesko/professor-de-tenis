@@ -1,5 +1,6 @@
 "use client";
 import { FormPage, FormSection, Input, AvatarUpload, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -7,7 +8,7 @@ import { useState } from "react";
 export default function EditarNivelPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { niveis, updateNivel } = useStore();
+  const { niveis, updateNivel } = useStore(useShallow((s) => ({ niveis: s.niveis, updateNivel: s.updateNivel })));
   const n = niveis.find((x) => x.id === id);
   const [imagem, setImagem] = useState<string | undefined>(n?.imagem);
 

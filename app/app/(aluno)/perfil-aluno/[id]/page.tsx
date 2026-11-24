@@ -1,17 +1,19 @@
 "use client";
-import { Card, Avatar, Badge, LevelBadge } from "@/components/ui";
+import { Card, Avatar, Badge, LevelBadge, PanelPage, Section, ListRow, InfoRow, StatGrid, StatCard, EmptyState, NotFoundState } from "@/components/ui";
+import { formatDate } from "@/lib/date";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getAlunoSession } from "@/lib/aluno-creds";
 import { assertOwnership } from "@/lib/auth";
-import { Trophy, Mail, Phone, Cake, Lock, Crown } from "lucide-react";
+import { Trophy, Mail, Phone, Cake, Lock, Crown, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
 export default function PerfilAlunoPublicPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { alunos, niveis, premios, feedbacks, professores } = useStore();
+  const { alunos, niveis, premios, feedbacks, professores } = useStore(useShallow((s) => ({ alunos: s.alunos, niveis: s.niveis, premios: s.premios, feedbacks: s.feedbacks, professores: s.professores })));
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -31,6 +33,12 @@ export default function PerfilAlunoPublicPage() {
       router.replace("/perfil-aluno/login");
     }
   }, [ready, sessionId, id, router]);
+
+  const aluno = alunos.find((a) => a.id === id);
+  const fbs = useMemo(
+    () => feedbacks.filter((f) => f.alunoId === id).sort((a, b) => b.data.localeCompare(a.data)),
+    [feedbacks, id],
+  );
 
   if (!ready) return null;
 
@@ -57,93 +65,81 @@ export default function PerfilAlunoPublicPage() {
     );
   }
 
-  const aluno = alunos.find((a) => a.id === id);
-  if (!aluno) return <div className="p-8 text-center">Aluno não encontrado</div>;
+  if (!aluno) return <NotFoundState title="Aluno não encontrado" backHref="/perfil-aluno/ranking" backLabel="Ver ranking" />;
 
   const nivel = niveis.find((n) => n.id === aluno.nivelId);
-  const fbs = useMemo(
-    () => feedbacks.filter((f) => f.alunoId === aluno.id).sort((a, b) => b.data.localeCompare(a.data)),
-    [feedbacks, aluno.id]
-  );
-
-  // Posição no ranking
+  const progresso = nivel ? Math.min(100, Math.max(0, ((aluno.pontos - nivel.pontosMin) / Math.max(1, nivel.pontosMax - nivel.pontosMin)) * 100)) : 0;
   const ativos = [...alunos].filter((a) => a.status === "ativo").sort((a, b) => b.pontos - a.pontos);
   const posicao = ativos.findIndex((a) => a.id === aluno.id) + 1;
+  const conquistados = premios.filter((p) => aluno.pontos >= p.pontosNecessarios).length;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <Card className="p-6 text-center lg:col-span-1">
-        <Avatar src={aluno.avatar} alt={aluno.nome} size={120} />
-        <h2 className="mt-3 font-display text-xl font-bold text-brand">{aluno.nome}</h2>
-        <Badge color={aluno.status === "ativo" ? "lime" : "red"}>{aluno.status}</Badge>
-        <div className="mt-4 grid gap-2 text-left text-sm text-ink-700">
-          <div className="flex items-center gap-2"><Mail size={14} className="text-brand" /> {aluno.email}</div>
-          <div className="flex items-center gap-2"><Phone size={14} className="text-brand" /> {aluno.telefone}</div>
-          <div className="flex items-center gap-2"><Cake size={14} className="text-brand" /> {aluno.nascimento}</div>
-        </div>
-      </Card>
-
-      <div className="space-y-6 lg:col-span-2">
-        <Card className="p-6">
-          <h3 className="font-display text-lg font-bold text-brand">Nível & Pontuação</h3>
-          <div className="mt-4 flex items-center justify-between">
-            {nivel && <LevelBadge cor={nivel.cor} nome={nivel.nome} size={48} />}
-            <div className="text-right">
-              <div className="font-display text-3xl font-bold text-brand">{aluno.pontos}</div>
-              <div className="text-xs text-ink-500">pontos</div>
-            </div>
+    <PanelPage width="readable" className="px-0 sm:px-0 lg:px-0">
+      <Section flush>
+        <ListRow className="py-5">
+          <Avatar src={aluno.avatar} alt="" size={64} />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-xl font-bold text-brand">{aluno.nome}</h1>
+            {nivel && <div className="mt-1"><LevelBadge cor={nivel.cor} nome={nivel.nome} size={24} /></div>}
           </div>
-          <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-line">
-            <div className="h-full bg-brand-lime2" style={{ width: `${Math.min(100, (aluno.pontos / 160) * 100)}%` }} />
-          </div>
-          {posicao > 0 && (
-            <div className="mt-4 flex items-center justify-between rounded-card bg-brand-mint2 p-3">
-              <span className="text-xs text-brand">Sua posição no ranking</span>
-              <span className="font-display text-xl font-bold text-brand">#{posicao}</span>
-            </div>
-          )}
-        </Card>
+        </ListRow>
+        <InfoRow label="E-mail" icon={<Mail size={14} />}>{aluno.email}</InfoRow>
+        <InfoRow label="Telefone" icon={<Phone size={14} />}>{aluno.telefone}</InfoRow>
+        <InfoRow label="Nascimento" icon={<Cake size={14} />}>{aluno.nascimento}</InfoRow>
+      </Section>
 
-        <Card className="p-6">
-          <h3 className="font-display text-lg font-bold text-brand">Prêmios Conquistados</h3>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {premios.map((p) => {
-              const got = aluno.pontos >= p.pontosNecessarios;
-              return (
-                <div key={p.id} className={`rounded-card border border-line p-4 text-center ${got ? "" : "opacity-40"}`}>
-                  <Trophy size={32} className="mx-auto text-brand-yellow" />
-                  <div className="mt-2 text-xs font-semibold">{p.nome}</div>
-                  <div className="text-[10px] text-ink-500">{p.pontosNecessarios} pts</div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+      <StatGrid>
+        <StatCard label="Pontos" value={aluno.pontos} />
+        <StatCard label="Ranking" value={posicao > 0 ? `#${posicao}` : "—"} hint={`de ${ativos.length} alunos`} />
+        <StatCard label="Prêmios" value={`${conquistados}/${premios.length}`} hint="conquistados" />
+        <StatCard label="Feedbacks" value={fbs.length} />
+      </StatGrid>
 
-        <Card className="p-6">
-          <h3 className="font-display text-lg font-bold text-brand">Feedbacks dos professores</h3>
-          <div className="mt-4 space-y-3">
-            {fbs.length === 0 && <p className="text-sm text-ink-500">Nenhum feedback ainda.</p>}
-            {fbs.map((f) => {
-              const prof = professores.find((p) => p.id === f.professorId);
-              return (
-                <div key={f.id} className="rounded-card border border-line bg-white p-4">
-                  <div className="flex items-center gap-2">
-                    {prof && <Avatar src={prof.avatar} alt={prof.nome} size={28} />}
-                    <div>
-                      <div className="text-xs font-semibold text-brand">{prof?.nome ?? "Professor"}</div>
-                      <div className="text-[10px] text-ink-500">
-                        {new Date(f.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
-                      </div>
-                    </div>
+      {nivel && (
+        <Section title="Evolução no nível" description={`${nivel.nome}: ${nivel.pontosMin}–${nivel.pontosMax} pts`}>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={Math.round(progresso)} aria-valuemin={0} aria-valuemax={100} aria-label="Progresso no nível">
+            <div className="h-full rounded-full bg-brand-lime2" style={{ width: `${progresso}%` }} />
+          </div>
+        </Section>
+      )}
+
+      <Section flush title="Prêmios">
+        {[...premios].sort((a, b) => a.pontosNecessarios - b.pontosNecessarios).map((p) => {
+          const got = aluno.pontos >= p.pontosNecessarios;
+          return (
+            <ListRow key={p.id}>
+              <Trophy size={20} className={got ? "text-brand-yellow" : "text-ink-300"} />
+              <div className="min-w-0 flex-1">
+                <div className={`truncate text-sm font-semibold ${got ? "text-ink-900" : "text-ink-500"}`}>{p.nome}</div>
+                <div className="text-xs tabular-nums text-ink-500">{p.pontosNecessarios} pts</div>
+              </div>
+              {got ? <Badge color="lime">Conquistado</Badge> : <span className="text-xs tabular-nums text-ink-500">faltam {p.pontosNecessarios - aluno.pontos} pts</span>}
+            </ListRow>
+          );
+        })}
+      </Section>
+
+      <Section flush title="Feedbacks dos professores">
+        {fbs.length === 0 ? (
+          <EmptyState compact icon={MessageSquare} title="Nenhum feedback ainda" />
+        ) : (
+          fbs.map((f) => {
+            const prof = professores.find((p) => p.id === f.professorId);
+            return (
+              <div key={f.id} className="px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-3">
+                  {prof && <Avatar src={prof.avatar} alt="" size={32} />}
+                  <div>
+                    <div className="text-sm font-semibold text-ink-900">{prof?.nome ?? "Professor"}</div>
+                    <div className="text-xs text-ink-500">{formatDate(f.data, { day: "2-digit", month: "long", year: "numeric" })}</div>
                   </div>
-                  <p className="mt-2 text-sm text-ink-700">{f.texto}</p>
                 </div>
-              );
-            })}
-          </div>
-        </Card>
-      </div>
-    </div>
+                <p className="mt-2 whitespace-pre-line text-sm text-ink-700">{f.texto}</p>
+              </div>
+            );
+          })
+        )}
+      </Section>
+    </PanelPage>
   );
 }

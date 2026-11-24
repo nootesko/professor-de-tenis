@@ -1,5 +1,6 @@
 "use client";
 import { FormPage, FormSection, Input, Select, AvatarUpload, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -7,7 +8,7 @@ import { useState } from "react";
 export default function EditarProfessorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { professores, updateProfessor } = useStore();
+  const { professores, updateProfessor } = useStore(useShallow((s) => ({ professores: s.professores, updateProfessor: s.updateProfessor })));
   const prof = professores.find((p) => p.id === id);
 
   const { values, fieldProps, isValid, validateAll, setValues } = useFormValidation(

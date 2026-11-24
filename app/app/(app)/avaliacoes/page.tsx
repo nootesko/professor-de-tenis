@@ -1,42 +1,44 @@
 "use client";
-import { PageHeader, Card, Button, KebabMenu, ConfirmDialog } from "@/components/ui";
-import { useStore } from "@/lib/store";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, ClipboardCheck } from "lucide-react";
 import { useState } from "react";
+import { Plus, Trash2, ClipboardCheck } from "lucide-react";
+import { PageHeader, PanelPage, Section, ListRow, KebabMenu, ConfirmDialog, EmptyState } from "@/components/ui";
+import { useStore } from "@/lib/store";
+import { toast } from "@/components/Toast";
 
 export default function AvaliacoesPage() {
-  const { criterios, deleteCriterio } = useStore();
+  const criterios = useStore((s) => s.criterios);
+  const deleteCriterio = useStore((s) => s.deleteCriterio);
   const [delId, setDelId] = useState<string | null>(null);
   const grouped = criterios.reduce((acc, c) => { (acc[c.categoria] ||= []).push(c); return acc; }, {} as Record<string, typeof criterios>);
+  const alvo = criterios.find((c) => c.id === delId);
   return (
-    <>
+    <PanelPage>
       <PageHeader
         title="Avaliações"
-        crumbs={["DASHBOARD","AVALIAÇÕES"]}
-        actions={<Link href="/avaliacoes/novo"><Button><Plus size={16} /> Adicionar critério</Button></Link>}
+        description="Critérios usados na avaliação de desempenho dos alunos."
+        actions={<Link href="/avaliacoes/novo" className="btn-primary"><Plus size={16} /> Novo critério</Link>}
       />
-      <div className="grid gap-6 md:grid-cols-3">
-        {Object.entries(grouped).map(([cat, list]) => (
-          <Card key={cat} className="p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <ClipboardCheck size={18} className="text-brand" />
-              <h3 className="font-display text-lg font-bold text-brand">{cat}</h3>
-            </div>
-            <div className="space-y-2">
-              {list.map((c) => (
-                <div key={c.id} className="flex items-center justify-between rounded-card border border-line p-3">
-                  <span className="text-sm">{c.nome}</span>
-                  <KebabMenu items={[
-                    { label: "Excluir", icon: <Trash2 size={14} />, danger: true, onClick: () => setDelId(c.id) },
-                  ]} />
-                </div>
-              ))}
-            </div>
-          </Card>
-        ))}
-      </div>
-      <ConfirmDialog open={!!delId} title="Excluir critério?" message="O critério será removido." onCancel={() => setDelId(null)} onConfirm={() => { if (delId) deleteCriterio(delId); setDelId(null); }} />
-    </>
+      {Object.keys(grouped).length === 0 && <EmptyState icon={ClipboardCheck} title="Nenhum critério cadastrado" />}
+      {Object.entries(grouped).map(([cat, list]) => (
+        <Section key={cat} flush title={cat} description={`${list.length} ${list.length === 1 ? "critério" : "critérios"}`}>
+          {list.map((c) => (
+            <ListRow key={c.id} className="min-h-14">
+              <span className="flex-1 text-sm text-ink-900">{c.nome}</span>
+              <KebabMenu label={`Ações de ${c.nome}`} items={[
+                { label: "Excluir", icon: <Trash2 size={14} />, danger: true, onClick: () => setDelId(c.id) },
+              ]} />
+            </ListRow>
+          ))}
+        </Section>
+      ))}
+      <ConfirmDialog
+        open={!!delId}
+        title="Excluir critério?"
+        message={`"${alvo?.nome ?? ""}" deixará de aparecer nas próximas avaliações.`}
+        onCancel={() => setDelId(null)}
+        onConfirm={() => { if (delId) { deleteCriterio(delId); toast.success("Critério excluído"); } setDelId(null); }}
+      />
+    </PanelPage>
   );
 }

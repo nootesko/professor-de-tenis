@@ -1,58 +1,55 @@
 'use client';
 import Link from 'next/link';
 import { MoreVertical } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 export function KebabMenu({
   items,
+  label = 'Mais ações',
 }: {
   items: { label: string; icon?: ReactNode; onClick?: () => void; href?: string; danger?: boolean }[];
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  const itemCls = (danger?: boolean) =>
+    cn('flex h-10 w-full items-center gap-2 rounded-input px-3 text-left text-sm font-medium transition-colors',
+      danger ? 'text-red-600 hover:bg-red-50' : 'text-ink-700 hover:bg-soft');
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
-        className="grid h-8 w-8 place-items-center rounded-full transition-all duration-200 hover:bg-brand-mint2 hover:scale-110 active:scale-95"
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v); }}
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="grid h-9 w-9 place-items-center rounded-full text-ink-500 transition-colors hover:bg-soft hover:text-ink-900"
       >
-        <MoreVertical size={16} className="text-ink-500" />
+        <MoreVertical size={16} />
       </button>
       {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-20 mt-1 w-40 origin-top-right overflow-hidden rounded-card border border-line bg-white shadow-soft animate-scale-in">
-            {items.map((it, i) => {
-              const inner = (
-                <div
-                  className={cn(
-                    'flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors duration-150 hover:bg-brand-mint2 hover:pl-5',
-                    it.danger && 'text-red-600 hover:bg-red-50',
-                  )}
-                >
-                  {it.icon}
-                  {it.label}
-                </div>
-              );
-              return it.href ? (
-                <Link key={i} href={it.href} onClick={() => setOpen(false)}>
-                  {inner}
-                </Link>
-              ) : (
-                <button
-                  key={i}
-                  onClick={() => {
-                    it.onClick?.();
-                    setOpen(false);
-                  }}
-                  className="block w-full"
-                >
-                  {inner}
-                </button>
-              );
-            })}
-          </div>
-        </>
+        <div role="menu" className="absolute right-0 z-20 mt-1 w-48 origin-top-right rounded-panel border border-line-strong bg-white p-1.5 shadow-soft animate-scale-in">
+          {items.map((it) =>
+            it.href ? (
+              <Link key={it.label} role="menuitem" href={it.href} onClick={() => setOpen(false)} className={itemCls(it.danger)}>
+                {it.icon}{it.label}
+              </Link>
+            ) : (
+              <button key={it.label} role="menuitem" type="button" onClick={(e) => { e.stopPropagation(); it.onClick?.(); setOpen(false); }} className={itemCls(it.danger)}>
+                {it.icon}{it.label}
+              </button>
+            ),
+          )}
+        </div>
       )}
     </div>
   );

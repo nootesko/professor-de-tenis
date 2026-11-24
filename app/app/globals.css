@@ -4,7 +4,7 @@
 
 html, body { height: 100%; }
 body {
-  background: #eff8f6;
+  background: #f4f6f5;
   color: #363636;
   font-family: var(--font-dmsans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -39,31 +39,32 @@ body {
 }
 
 @layer components {
+  /* Para <Link> com cara de botão (mesmos estilos do <Button>). */
   .pill-btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-pill px-5 py-2.5 text-sm font-semibold transition;
+    @apply inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-pill px-5 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2;
   }
   .btn-primary {
     @apply pill-btn bg-brand-lime text-brand-dark hover:brightness-95;
   }
   .btn-outline {
-    @apply pill-btn border border-line bg-white text-ink-700 hover:bg-brand-mint2;
+    @apply pill-btn border border-line-strong bg-white text-ink-900 hover:border-brand hover:bg-soft;
   }
   .btn-ghost {
-    @apply pill-btn text-ink-700 hover:bg-brand-mint2;
+    @apply pill-btn text-ink-700 hover:bg-soft;
   }
   .card {
-    @apply rounded-card bg-white shadow-card;
+    @apply rounded-card border border-line-strong bg-white;
   }
   .input {
-    @apply w-full rounded-input border border-line bg-white px-4 py-2.5 text-sm text-ink-900 placeholder:text-ink-300 focus:border-brand focus:outline-none;
+    @apply h-12 w-full rounded-input border border-line-strong bg-white px-4 text-base text-ink-900 placeholder:text-ink-300 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 md:text-sm;
   }
   .label {
-    @apply mb-1.5 block text-xs font-medium text-ink-600;
+    @apply mb-1.5 block text-sm font-medium text-ink-700;
   }
   .h-page {
-    @apply font-display text-3xl font-bold text-brand;
+    @apply font-display text-2xl font-bold leading-tight text-brand md:text-[1.75rem];
   }
-  .crumbs {
-    @apply mt-1 text-[11px] uppercase tracking-wider text-ink-500;
+  .caps {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-500;
   }
 }

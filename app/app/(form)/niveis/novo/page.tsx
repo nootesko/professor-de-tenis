@@ -1,12 +1,13 @@
 "use client";
 import { FormPage, FormSection, Input, AvatarUpload, useFormValidation, validators as V } from "@/components/ui";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function NovoNivelPage() {
   const router = useRouter();
-  const { addNivel } = useStore();
+  const { addNivel } = useStore(useShallow((s) => ({ addNivel: s.addNivel })));
   const [imagem, setImagem] = useState<string | undefined>(undefined);
 
   const { values, fieldProps, isValid, validateAll, setValues } = useFormValidation(
