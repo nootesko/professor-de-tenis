@@ -1,1 +1,0 @@
-self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/home/noote/professor-de-tenis/app/app/layout\":[\"static/media/1a4aa50920b5315c-s.p.woff2\",\"static/media/13971731025ec697-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"

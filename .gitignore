@@ -29,3 +29,7 @@ Thumbs.db
 # AIOS Local (AIOS)
 .aios-core/local/
 .aios/install-log.txt
+
+# Next.js build
+.next/
+*.tsbuildinfo

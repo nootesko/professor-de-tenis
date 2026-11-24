@@ -214,5 +214,3 @@ export const selectProfessorById = (id: string) => (s: State): Professor | undef
 export const selectNivelById = (id: string) => (s: State): Nivel | undefined =>
   s.niveis.find((n) => n.id === id);
 
-// Used by `s` getter — keep get() referenced to silence unused warnings.
-void get;
