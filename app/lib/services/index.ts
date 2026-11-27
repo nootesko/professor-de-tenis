@@ -2,15 +2,20 @@
 // Services delegate to repositories for persistence and use the store-bridge
 // for transactional cross-entity updates.
 
-import type { Aluno, Turma, Professor, Nivel, Aula, Feedback, Premiacao, Avaliacao, Premio, CriterioAvaliacao } from '@/lib/types';
+import type {
+  Aluno, Turma, Professor, Nivel, Aula, Feedback, Avaliacao, CriterioAvaliacao, ProgramaRecompensas,
+  TabelaNiveis, LancamentoPonto, PremioNivel, Premio,
+} from '@/lib/types';
+import { pontosDaAula, progresso, premiosEntre, conquistasParaCelebrar, type Conquista } from '@/lib/gamificacao';
+import { toLocalISODate } from '@/lib/date';
 import { getState, setState } from '@/lib/repositories/mock/store-bridge';
 import {
   mockAlunoRepository,
   mockTurmaRepository,
   mockProfessorRepository,
   mockNivelRepository,
-  mockPremioRepository,
-  mockPremiacaoRepository,
+  mockTabelaNiveisRepository,
+  mockLancamentoRepository,
   mockAulaRepository,
   mockFeedbackRepository,
   mockAvaliacaoRepository,
@@ -25,11 +30,12 @@ type FullState = {
   niveis: Nivel[];
   aulas: Aula[];
   feedbacks: Feedback[];
-  premiacoes: Premiacao[];
+  lancamentos: LancamentoPonto[];
   avaliacoes: Avaliacao[];
   alunoCreds: { alunoId: string; user: string; senha: string }[];
-  premios: Premio[];
+  tabela: TabelaNiveis;
   criterios: CriterioAvaliacao[];
+  programa: ProgramaRecompensas;
 };
 
 const st = (): FullState => getState<FullState>();
@@ -61,6 +67,16 @@ export const AlunoService = {
         const senha = Math.random().toString(36).slice(2, 10);
         next.alunoCreds = [...s.alunoCreds, { alunoId: a.id, user, senha }];
       }
+      if (a.pontos > 0) {
+        // Pontos iniciais (saldo de antes do app) entram no histórico como ajuste.
+        next.lancamentos = [
+          ...s.lancamentos,
+          {
+            id: `lp${Date.now()}-${a.id}`, alunoId: a.id, tipo: 'ajuste', data: toLocalISODate(new Date()),
+            anterior: 0, valor: a.pontos, registradoEm: new Date().toISOString(),
+          },
+        ];
+      }
       return { ...s, ...next };
     });
     return { ok: true };
@@ -83,7 +99,19 @@ export const AlunoService = {
           return t;
         });
       }
-      return { ...s, alunos, turmas };
+      // Mudança direta do total vira um ajuste no histórico de pontos (valor anterior e corrigido).
+      let lancamentos = s.lancamentos;
+      if (previous && patch.pontos !== undefined && patch.pontos !== previous.pontos) {
+        const agora = new Date().toISOString();
+        lancamentos = [
+          ...lancamentos,
+          {
+            id: `lp${Date.now()}-${id}`, alunoId: id, tipo: 'ajuste', data: toLocalISODate(new Date()),
+            anterior: previous.pontos, valor: Math.max(0, patch.pontos), registradoEm: agora,
+          },
+        ];
+      }
+      return { ...s, alunos, turmas, lancamentos };
     });
     return { ok: true };
   },
@@ -97,26 +125,25 @@ export const AlunoService = {
         turmas: s.turmas.map((t) => ({ ...t, alunosIds: t.alunosIds.filter((x) => x !== id) })),
         feedbacks: s.feedbacks.filter((f) => f.alunoId !== id),
         aulas: s.aulas.map((au) => {
-          const presenca = { ...au.presenca };
-          delete presenca[id];
-          const pontos = { ...au.pontos };
-          delete pontos[id];
-          const stars = { ...au.stars };
-          delete stars[id];
-          return { ...au, presenca, pontos, stars };
+          const sem = <T,>(m: Record<string, T>) => {
+            const c = { ...m };
+            delete c[id];
+            return c;
+          };
+          return {
+            ...au,
+            presenca: sem(au.presenca),
+            notas: sem(au.notas),
+            observacao: sem(au.observacao),
+            ponto: sem(au.ponto),
+            nivel: sem(au.nivel),
+          };
         }),
-        premiacoes: s.premiacoes.filter((p) => p.alunoId !== id),
+        lancamentos: s.lancamentos.filter((l) => l.alunoId !== id),
         avaliacoes: s.avaliacoes.filter((a) => a.alunoId !== id),
         alunoCreds: s.alunoCreds.filter((c) => c.alunoId !== id),
       };
     });
-    return { ok: true };
-  },
-
-  addPontos(id: string, delta: number): ActionResult {
-    const a = mockAlunoRepository.byId(id);
-    if (!a) return { ok: false, error: 'Aluno não encontrado' };
-    mockAlunoRepository.update(id, { pontos: Math.max(0, a.pontos + delta) });
     return { ok: true };
   },
 };
@@ -261,14 +288,30 @@ export const AvaliacaoService = {
 };
 
 // ---------------------------------------------------------------------------
-// PremiacaoService
+// TabelaNiveisService — tabela de níveis sem limite, editável nível a nível
 // ---------------------------------------------------------------------------
-export const PremiacaoService = {
-  grant(p: Premiacao): ActionResult {
-    mockPremiacaoRepository.add(p);
+export const TabelaNiveisService = {
+  /** Configura o prêmio de um nível. `null` = nível sem prêmio (conta normalmente, sem aviso). */
+  definirNivel(nivel: number, premio: PremioNivel | null): ActionResult {
+    if (!Number.isInteger(nivel) || nivel < 1) return { ok: false, error: 'Nível inválido' };
+    const t = mockTabelaNiveisRepository.get();
+    mockTabelaNiveisRepository.set({ ...t, niveis: { ...t.niveis, [nivel]: premio } });
     return { ok: true };
   },
-  revoke: (id: string): ActionResult => (mockPremiacaoRepository.remove(id), { ok: true }),
+  /** Remove a configuração do nível: ele volta a seguir a regra do bloco. */
+  usarRegra(nivel: number): ActionResult {
+    const t = mockTabelaNiveisRepository.get();
+    const niveis = { ...t.niveis };
+    delete niveis[nivel];
+    mockTabelaNiveisRepository.set({ ...t, niveis });
+    return { ok: true };
+  },
+  definirFaixa(indice: number, premio: PremioNivel): ActionResult {
+    const t = mockTabelaNiveisRepository.get();
+    if (!t.faixas[indice]) return { ok: false, error: 'Faixa não encontrada' };
+    mockTabelaNiveisRepository.set({ ...t, faixas: t.faixas.map((f, i) => (i === indice ? { ...f, premio } : f)) });
+    return { ok: true };
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -280,6 +323,61 @@ export const AulaService = {
     return { ok: true };
   },
   delete: (id: string): ActionResult => (mockAulaRepository.remove(id), { ok: true }),
+
+  /**
+   * Salva o registro da aula e aplica as consequências de cada vertente, sem misturá-las:
+   * - pontos: soma/subtrai a diferença em relação ao registro anterior desta aula e grava o lançamento
+   *   (na correção, com o valor anterior e o corrigido);
+   * - nível técnico: atualiza a bola atual do aluno (não mexe em pontos nem prêmios);
+   * - conquistas: não são gravadas; saem do histórico + tabela. Aqui só se calcula o que comemorar:
+   *   todos os níveis com prêmio atravessados (ex.: de 46 para 49 inclui o 48).
+   */
+  finalizar(aula: Aula): { conquistas: Conquista[] } {
+    const s0 = st();
+    const anterior = s0.aulas.find((a) => a.id === aula.id);
+    const alunoIds = Object.keys(aula.presenca);
+    const antes = new Map(
+      alunoIds.map((id) => {
+        const al = s0.alunos.find((x) => x.id === id);
+        return [id, al ? progresso(s0.programa.unidade, al, s0.aulas) : 0];
+      }),
+    );
+    const agora = new Date().toISOString();
+    let seq = 0;
+
+    setState((prev) => {
+      const s = prev as FullState;
+      const aulas = s.aulas.some((a) => a.id === aula.id)
+        ? s.aulas.map((a) => (a.id === aula.id ? aula : a))
+        : [...s.aulas, aula];
+      const novos: LancamentoPonto[] = [];
+      const alunos = s.alunos.map((al) => {
+        if (!alunoIds.includes(al.id)) return al;
+        const de = anterior ? pontosDaAula(anterior, al.id) : null;
+        const para = pontosDaAula(aula, al.id);
+        if ((de ?? 0) !== para) {
+          novos.push({
+            id: `lp${Date.now()}-${(seq += 1)}`, alunoId: al.id, tipo: 'aula', aulaId: aula.id, data: aula.data,
+            anterior: de, valor: para, registradoEm: agora,
+          });
+        }
+        const delta = para - (de ?? 0);
+        const nivelId = aula.nivel[al.id] || al.nivelId;
+        return delta === 0 && nivelId === al.nivelId ? al : { ...al, pontos: Math.max(0, al.pontos + delta), nivelId };
+      });
+      return { ...s, aulas, alunos, lancamentos: [...s.lancamentos, ...novos] };
+    });
+
+    const s1 = st();
+    const porAluno: { alunoId: string; premios: Premio[] }[] = [];
+    for (const id of alunoIds) {
+      const al = s1.alunos.find((x) => x.id === id);
+      if (!al) continue;
+      const depois = progresso(s1.programa.unidade, al, s1.aulas);
+      porAluno.push({ alunoId: id, premios: premiosEntre(s1.tabela, antes.get(id) ?? 0, depois) });
+    }
+    return { conquistas: conquistasParaCelebrar(s1.programa, porAluno) };
+  },
 };
 
 // Re-export repos for tests / advanced usage
@@ -288,8 +386,8 @@ export {
   mockTurmaRepository,
   mockProfessorRepository,
   mockNivelRepository,
-  mockPremioRepository,
-  mockPremiacaoRepository,
+  mockTabelaNiveisRepository,
+  mockLancamentoRepository,
   mockAulaRepository,
   mockFeedbackRepository,
   mockAvaliacaoRepository,

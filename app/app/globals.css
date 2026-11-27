@@ -68,3 +68,24 @@ body {
     @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-500;
   }
 }
+
+/* ─── Login (estilo noot hub): eyebrow, campo e anéis em onda ─── */
+.pdt-eyebrow { display: inline-block; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.18em; line-height: 1.2; text-transform: uppercase; }
+.pdt-input { width: 100%; height: 48px; padding-inline: 16px; border: 1px solid rgba(11, 42, 32, 0.14); border-radius: 16px; background: #fff; color: #0b2a20; font-size: 1rem; transition: border-color 180ms ease, box-shadow 180ms ease; }
+.pdt-input::placeholder { color: #9aa8a3; }
+.pdt-input:focus { outline: none; border-color: #0b2a20; box-shadow: 0 0 0 3px rgba(15, 132, 69, 0.18); }
+.pdt-input[aria-invalid="true"] { border-color: #dc2626; }
+.pdt-ball-wrap { position: absolute; left: 50%; bottom: 0; width: min(80%, 540px); aspect-ratio: 1; transform: translate(-50%, 58%); pointer-events: none; }
+.pdt-ball-spin { transform-origin: 100px 100px; animation: pdt-spin 24s linear infinite; }
+@keyframes pdt-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pdt-ball-spin { animation: none; } }
+
+/* ─── Comemoração de conquista ─── */
+.pdt-fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.pdt-confete { position: absolute; top: -20px; border-radius: 2px; animation-name: pdt-cair; animation-timing-function: cubic-bezier(0.3, 0.6, 0.6, 1); animation-fill-mode: both; animation-iteration-count: 2; }
+@keyframes pdt-cair { from { transform: translate3d(0, 0, 0) rotate(0); opacity: 1; } to { transform: translate3d(var(--pdt-drift), 110vh, 0) rotate(var(--pdt-spin)); opacity: 0.9; } }
+.pdt-faisca { position: absolute; width: 6px; height: 6px; border-radius: 9999px; animation: pdt-explodir 1.4s cubic-bezier(0.16, 1, 0.3, 1) both; animation-iteration-count: 2; }
+@keyframes pdt-explodir { 0% { transform: rotate(var(--pdt-a)) translateX(0) scale(1); opacity: 1; } 80% { opacity: 1; } 100% { transform: rotate(var(--pdt-a)) translateX(var(--pdt-r)) scale(0.4); opacity: 0; } }
+.pdt-estrela { animation: pdt-brilhar 1.6s ease-in-out both; animation-iteration-count: 3; }
+@keyframes pdt-brilhar { 0%, 100% { transform: scale(0) rotate(0); opacity: 0; } 50% { transform: scale(1) rotate(72deg); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pdt-fx { display: none; } }

@@ -9,11 +9,13 @@ import { getAlunoSession } from "@/lib/aluno-creds";
 import { assertOwnership } from "@/lib/auth";
 import { Trophy, Mail, Phone, Cake, Lock, Crown, MessageSquare } from "lucide-react";
 import Link from "next/link";
+import { TrilhaMarcos } from "@/components/ui/TrilhaMarcos";
+import { progresso as calcProgresso, premiosEntre, conquistasDoAluno } from "@/lib/gamificacao";
 
 export default function PerfilAlunoPublicPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { alunos, niveis, premios, feedbacks, professores } = useStore(useShallow((s) => ({ alunos: s.alunos, niveis: s.niveis, premios: s.premios, feedbacks: s.feedbacks, professores: s.professores })));
+  const { alunos, niveis, tabela, feedbacks, professores, aulas, programa } = useStore(useShallow((s) => ({ alunos: s.alunos, niveis: s.niveis, tabela: s.tabela, feedbacks: s.feedbacks, professores: s.professores, aulas: s.aulas, programa: s.programa })));
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -68,10 +70,13 @@ export default function PerfilAlunoPublicPage() {
   if (!aluno) return <NotFoundState title="Aluno não encontrado" backHref="/perfil-aluno/ranking" backLabel="Ver ranking" />;
 
   const nivel = niveis.find((n) => n.id === aluno.nivelId);
-  const progresso = nivel ? Math.min(100, Math.max(0, ((aluno.pontos - nivel.pontosMin) / Math.max(1, nivel.pontosMax - nivel.pontosMin)) * 100)) : 0;
+  const atual = calcProgresso(programa.unidade, aluno, aulas);
+  const minhas = [...conquistasDoAluno(tabela, programa.unidade, aluno, aulas)].reverse();
+  // Próximos 3 prêmios configurados (procura alguns blocos à frente; a tabela não tem fim).
+  const proximos = premiosEntre(tabela, atual, atual + tabela.tamanhoBloco * 8).slice(0, 3);
+  const prox = proximos[0];
   const ativos = [...alunos].filter((a) => a.status === "ativo").sort((a, b) => b.pontos - a.pontos);
   const posicao = ativos.findIndex((a) => a.id === aluno.id) + 1;
-  const conquistados = premios.filter((p) => aluno.pontos >= p.pontosNecessarios).length;
 
   return (
     <PanelPage width="readable" className="px-0 sm:px-0 lg:px-0">
@@ -89,34 +94,38 @@ export default function PerfilAlunoPublicPage() {
       </Section>
 
       <StatGrid>
-        <StatCard label="Pontos" value={aluno.pontos} />
+        <StatCard label="Meu nível" value={atual} hint={programa.unidade === "pontos" ? "pontos acumulados" : "aulas frequentadas"} />
         <StatCard label="Ranking" value={posicao > 0 ? `#${posicao}` : "—"} hint={`de ${ativos.length} alunos`} />
-        <StatCard label="Prêmios" value={`${conquistados}/${premios.length}`} hint="conquistados" />
+        <StatCard label="Prêmios" value={minhas.length} hint="conquistados" />
         <StatCard label="Feedbacks" value={fbs.length} />
       </StatGrid>
 
-      {nivel && (
-        <Section title="Evolução no nível" description={`${nivel.nome}: ${nivel.pontosMin}–${nivel.pontosMax} pts`}>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={Math.round(progresso)} aria-valuemin={0} aria-valuemax={100} aria-label="Progresso no nível">
-            <div className="h-full rounded-full bg-brand-lime2" style={{ width: `${progresso}%` }} />
-          </div>
-        </Section>
-      )}
+      <Section title={`Nível ${atual}`} description={prox ? `Faltam ${prox.nivel - atual} para ${prox.nome} (nível ${prox.nivel})` : "Continue somando pontos!"}>
+        <TrilhaMarcos tabela={tabela} atual={atual} />
+      </Section>
 
-      <Section flush title="Prêmios">
-        {[...premios].sort((a, b) => a.pontosNecessarios - b.pontosNecessarios).map((p) => {
-          const got = aluno.pontos >= p.pontosNecessarios;
-          return (
-            <ListRow key={p.id}>
-              <Trophy size={20} className={got ? "text-brand-yellow" : "text-ink-300"} />
-              <div className="min-w-0 flex-1">
-                <div className={`truncate text-sm font-semibold ${got ? "text-ink-900" : "text-ink-500"}`}>{p.nome}</div>
-                <div className="text-xs tabular-nums text-ink-500">{p.pontosNecessarios} pts</div>
-              </div>
-              {got ? <Badge color="lime">Conquistado</Badge> : <span className="text-xs tabular-nums text-ink-500">faltam {p.pontosNecessarios - aluno.pontos} pts</span>}
-            </ListRow>
-          );
-        })}
+      <Section flush title="Meus prêmios">
+        {minhas.length === 0 && proximos.length === 0 && <EmptyState compact icon={Trophy} title="Nenhum prêmio ainda" />}
+        {proximos.map((p) => (
+          <ListRow key={p.id}>
+            <Trophy size={20} className="text-ink-300" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-ink-500">{p.nome}</div>
+              <div className="text-xs tabular-nums text-ink-500">no nível {p.nivel}</div>
+            </div>
+            <span className="text-xs tabular-nums text-ink-500">faltam {p.nivel - atual}</span>
+          </ListRow>
+        ))}
+        {minhas.slice(0, 12).map((c) => (
+          <ListRow key={c.nivel}>
+            <Trophy size={20} className="text-brand-yellow" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-ink-900">{c.premio.nome}</div>
+              <div className="text-xs tabular-nums text-ink-500">Nível {c.nivel}{c.data ? ` · ${formatDate(c.data)}` : ""}</div>
+            </div>
+            <Badge color="lime">Conquistado</Badge>
+          </ListRow>
+        ))}
       </Section>
 
       <Section flush title="Feedbacks dos professores">

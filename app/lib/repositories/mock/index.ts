@@ -4,8 +4,8 @@ import type {
   Professor,
   Nivel,
   Avaliacao,
-  Premio,
-  Premiacao,
+  TabelaNiveis,
+  LancamentoPonto,
   Aula,
   Feedback,
   CriterioAvaliacao,
@@ -17,8 +17,8 @@ import type {
   ProfessorRepository,
   NivelRepository,
   AvaliacaoRepository,
-  PremioRepository,
-  PremiacaoRepository,
+  TabelaNiveisRepository,
+  LancamentoRepository,
   AulaRepository,
   FeedbackRepository,
   CriterioRepository,
@@ -31,11 +31,11 @@ type S = {
   turmas: Turma[];
   professores: Professor[];
   niveis: Nivel[];
-  premios: Premio[];
+  tabela: TabelaNiveis;
   criterios: CriterioAvaliacao[];
   feedbacks: Feedback[];
   aulas: Aula[];
-  premiacoes: Premiacao[];
+  lancamentos: LancamentoPonto[];
   avaliacoes: Avaliacao[];
   alunoCreds: AlunoCred[];
 };
@@ -98,17 +98,14 @@ export const mockAvaliacaoRepository: AvaliacaoRepository = {
     setState((prev) => ({ ...prev, avaliacoes: (prev as S).avaliacoes.filter((a) => a.id !== id) })),
 };
 
-export const mockPremioRepository: PremioRepository = {
-  list: () => s().premios,
-  add: (p) => setState((prev) => ({ ...prev, premios: [...(prev as S).premios, p] })),
-  remove: (id) => setState((prev) => ({ ...prev, premios: (prev as S).premios.filter((p) => p.id !== id) })),
+export const mockTabelaNiveisRepository: TabelaNiveisRepository = {
+  get: () => s().tabela,
+  set: (t) => setState((prev) => ({ ...prev, tabela: t })),
 };
 
-export const mockPremiacaoRepository: PremiacaoRepository = {
-  list: () => s().premiacoes,
-  add: (p) => setState((prev) => ({ ...prev, premiacoes: [p, ...(prev as S).premiacoes] })),
-  remove: (id) =>
-    setState((prev) => ({ ...prev, premiacoes: (prev as S).premiacoes.filter((p) => p.id !== id) })),
+export const mockLancamentoRepository: LancamentoRepository = {
+  list: () => s().lancamentos,
+  add: (l) => setState((prev) => ({ ...prev, lancamentos: [...(prev as S).lancamentos, l] })),
 };
 
 export const mockAulaRepository: AulaRepository = {

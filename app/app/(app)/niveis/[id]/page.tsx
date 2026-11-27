@@ -15,15 +15,15 @@ export default function NivelDetalhePage() {
   const deleteNivel = useStore((s) => s.deleteNivel);
   const [confirm, setConfirm] = useState(false);
   const n = niveis.find((x) => x.id === id);
-  if (!n) return <NotFoundState title="Nível não encontrado" backHref="/niveis" backLabel="Voltar para Níveis" />;
-  const lista = alunos.filter((a) => a.nivelId === n.id).sort((a, b) => b.pontos - a.pontos);
+  if (!n) return <NotFoundState title="Nível não encontrado" backHref="/niveis" backLabel="Voltar para Bolas" />;
+  const lista = alunos.filter((a) => a.nivelId === n.id).sort((a, b) => a.nome.localeCompare(b.nome));
 
   return (
     <PanelPage width="readable">
       <PageHeader
-        back={{ href: "/niveis", label: "Níveis" }}
+        back={{ href: "/niveis", label: "Bolas" }}
         title={n.nome}
-        description={`${n.pontosMin}–${n.pontosMax} pontos`}
+        description={n.descricao}
         actions={
           <>
             <Button variant="ghost" className="text-red-600 hover:bg-red-50" onClick={() => setConfirm(true)}><Trash2 size={14} /> Excluir</Button>
@@ -33,9 +33,7 @@ export default function NivelDetalhePage() {
       />
       <StatGrid>
         <StatCard label="Alunos" value={lista.length} />
-        <StatCard label="Pontos mín." value={n.pontosMin} />
-        <StatCard label="Pontos máx." value={n.pontosMax} />
-        <StatCard label="Média" value={lista.length ? Math.round(lista.reduce((a, b) => a + b.pontos, 0) / lista.length) : "—"} />
+        <StatCard label="Ordem" value={n.ordem ?? "—"} hint="na progressão técnica" />
       </StatGrid>
       <Section flush title="Sobre o nível">
         <ListRow>

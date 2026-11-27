@@ -8,16 +8,16 @@ import { useStore, selectNiveis, selectAlunos } from "@/lib/store";
 export default function NiveisPage() {
   const niveis = useStore(selectNiveis);
   const alunos = useStore(selectAlunos);
-  const ordenados = [...niveis].sort((a, b) => a.pontosMin - b.pontosMin);
+  const ordenados = [...niveis].sort((a, b) => (a.ordem ?? 99) - (b.ordem ?? 99) || a.nome.localeCompare(b.nome));
   return (
     <PanelPage>
       <PageHeader
-        title="Níveis"
-        description="Faixas de pontuação que definem a evolução dos alunos."
-        actions={<Link href="/niveis/novo" className="btn-primary"><Plus size={16} /> Novo nível</Link>}
+        title="Bolas"
+        description="Nível técnico (bola) em que cada aluno está. Independe dos pontos de gamificação."
+        actions={<Link href="/niveis/novo" className="btn-primary"><Plus size={16} /> Nova bola</Link>}
       />
       {ordenados.length === 0 ? (
-        <EmptyState icon={Star} title="Nenhum nível cadastrado" description="Crie níveis para classificar os alunos pela pontuação." />
+        <EmptyState icon={Star} title="Nenhum nível cadastrado" description="Crie os níveis técnicos, como as bolas vermelha, laranja e verde." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {ordenados.map((n) => {
@@ -35,8 +35,7 @@ export default function NiveisPage() {
                 <div className="p-5 pt-8">
                   <div className="font-display text-lg font-bold text-brand group-hover:underline">{n.nome}</div>
                   <div className="mt-1 line-clamp-2 text-sm text-ink-500">{n.descricao}</div>
-                  <div className="mt-3 flex items-center justify-between text-xs">
-                    <span className="tabular-nums text-ink-700">{n.pontosMin}–{n.pontosMax} pts</span>
+                  <div className="mt-3 flex items-center justify-end text-xs">
                     <span className="rounded-pill bg-brand-tint px-3 py-1 font-medium text-brand-dark">{count} {count === 1 ? "aluno" : "alunos"}</span>
                   </div>
                 </div>

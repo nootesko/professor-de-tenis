@@ -5,27 +5,31 @@ import {
   turmas as turmasSeed,
   professores as profsSeed,
   niveis as niveisSeed,
-  premios as premiosSeed,
+  tabela as tabelaSeed,
   criterios as critSeed,
   feedbacks as fbSeed,
   aulas as aulasSeed,
-  premiacoes as premSeed,
+  lancamentos as lancSeed,
   avaliacoes as avalSeed,
   alunoCreds as credsSeed,
+  programa as programaSeed,
 } from './mock-data';
 import type {
   Aluno,
   Turma,
   Professor,
   Nivel,
-  Premio,
   CriterioAvaliacao,
   Feedback,
   Aula,
-  Premiacao,
+  LancamentoPonto,
   Avaliacao,
   AlunoCred,
+  ProgramaRecompensas,
+  TabelaNiveis,
+  PremioNivel,
 } from './types';
+import type { Conquista } from './gamificacao';
 import { bindStore } from './repositories/mock/store-bridge';
 import {
   AlunoService,
@@ -33,7 +37,7 @@ import {
   ProfessorService,
   NivelService,
   AvaliacaoService,
-  PremiacaoService,
+  TabelaNiveisService,
   AulaService,
 } from './services';
 
@@ -42,15 +46,19 @@ type State = {
   turmas: Turma[];
   professores: Professor[];
   niveis: Nivel[];
-  premios: Premio[];
+  tabela: TabelaNiveis;
   criterios: CriterioAvaliacao[];
   feedbacks: Feedback[];
   aulas: Aula[];
-  premiacoes: Premiacao[];
+  lancamentos: LancamentoPonto[];
   avaliacoes: Avaliacao[];
   alunoCreds: AlunoCred[];
+  programa: ProgramaRecompensas;
+
+  setPrograma: (p: Partial<ProgramaRecompensas>) => void;
 
   upsertAula: (a: Aula) => void;
+  finalizarAula: (a: Aula) => { conquistas: Conquista[] };
   deleteAula: (id: string) => void;
 
   addAluno: (a: Aluno) => void;
@@ -69,17 +77,16 @@ type State = {
   updateNivel: (id: string, n: Partial<Nivel>) => void;
   deleteNivel: (id: string) => void;
 
-  addPremio: (p: Premio) => void;
-  deletePremio: (id: string) => void;
+  definirNivelPremio: (nivel: number, premio: PremioNivel | null) => void;
+  usarRegraNoNivel: (nivel: number) => void;
+  definirFaixa: (indice: number, premio: PremioNivel) => void;
 
   addCriterio: (c: CriterioAvaliacao) => void;
+  updateCriterio: (id: string, c: Partial<CriterioAvaliacao>) => void;
   deleteCriterio: (id: string) => void;
 
   addFeedback: (f: Feedback) => void;
   deleteFeedback: (id: string) => void;
-
-  addPremiacao: (p: Premiacao) => void;
-  deletePremiacao: (id: string) => void;
 
   addAvaliacao: (a: Avaliacao) => void;
   deleteAvaliacao: (id: string) => void;
@@ -94,15 +101,19 @@ export const useStore = create<State>((set, get) => ({
   turmas: turmasSeed,
   professores: profsSeed,
   niveis: niveisSeed,
-  premios: premiosSeed,
+  tabela: tabelaSeed,
   criterios: critSeed,
   feedbacks: fbSeed,
   aulas: aulasSeed,
-  premiacoes: premSeed,
+  lancamentos: lancSeed,
   avaliacoes: avalSeed,
   alunoCreds: credsSeed,
+  programa: programaSeed,
+
+  setPrograma: (p) => set((s) => ({ programa: { ...s.programa, ...p } })),
 
   upsertAula: (a) => AulaService.upsert(a),
+  finalizarAula: (a) => AulaService.finalizar(a),
   deleteAula: (id) => AulaService.delete(id),
 
   addAluno: (a) => {
@@ -145,25 +156,22 @@ export const useStore = create<State>((set, get) => ({
     NivelService.delete(id);
   },
 
-  addPremio: (p) => set((s) => ({ premios: [...s.premios, p] })),
-  deletePremio: (id) =>
-    set((s) => ({
-      premios: s.premios.filter((x) => x.id !== id),
-      premiacoes: s.premiacoes.filter((p) => p.premioId !== id),
-    })),
+  definirNivelPremio: (nivel, premio) => {
+    TabelaNiveisService.definirNivel(nivel, premio);
+  },
+  usarRegraNoNivel: (nivel) => {
+    TabelaNiveisService.usarRegra(nivel);
+  },
+  definirFaixa: (indice, premio) => {
+    TabelaNiveisService.definirFaixa(indice, premio);
+  },
 
   addCriterio: (c) => set((s) => ({ criterios: [...s.criterios, c] })),
+  updateCriterio: (id, c) => set((s) => ({ criterios: s.criterios.map((x) => (x.id === id ? { ...x, ...c } : x)) })),
   deleteCriterio: (id) => set((s) => ({ criterios: s.criterios.filter((x) => x.id !== id) })),
 
   addFeedback: (f) => set((s) => ({ feedbacks: [f, ...s.feedbacks] })),
   deleteFeedback: (id) => set((s) => ({ feedbacks: s.feedbacks.filter((x) => x.id !== id) })),
-
-  addPremiacao: (p) => {
-    PremiacaoService.grant(p);
-  },
-  deletePremiacao: (id) => {
-    PremiacaoService.revoke(id);
-  },
 
   addAvaliacao: (a) => {
     AvaliacaoService.create(a);
@@ -198,11 +206,13 @@ export const selectAlunos = (s: State): Aluno[] => s.alunos;
 export const selectTurmas = (s: State): Turma[] => s.turmas;
 export const selectProfessores = (s: State): Professor[] => s.professores;
 export const selectNiveis = (s: State): Nivel[] => s.niveis;
-export const selectPremios = (s: State): Premio[] => s.premios;
+export const selectTabela = (s: State): TabelaNiveis => s.tabela;
 export const selectAulas = (s: State): Aula[] => s.aulas;
 export const selectFeedbacks = (s: State): Feedback[] => s.feedbacks;
 export const selectAvaliacoes = (s: State): Avaliacao[] => s.avaliacoes;
-export const selectPremiacoes = (s: State): Premiacao[] => s.premiacoes;
+export const selectLancamentos = (s: State): LancamentoPonto[] => s.lancamentos;
+export const selectPrograma = (s: State): ProgramaRecompensas => s.programa;
+export const selectCriterios = (s: State): CriterioAvaliacao[] => s.criterios;
 export const selectAlunoCreds = (s: State): AlunoCred[] => s.alunoCreds;
 
 export const selectAlunoById = (id: string) => (s: State): Aluno | undefined =>

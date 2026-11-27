@@ -2,30 +2,45 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Trophy, Mail, Phone, MapPin, Cake, Pencil, Send, Trash2, Copy, Eye, EyeOff, ExternalLink, Layers, ClipboardCheck, MessageSquare, Plus, Check } from "lucide-react";
+import { Trophy, Mail, Phone, MapPin, Cake, Pencil, Send, Trash2, Copy, Eye, EyeOff, ExternalLink, Layers, ClipboardCheck, MessageSquare, Plus, Check, Award, History, LineChart as LineIcon, NotebookPen } from "lucide-react";
 import {
   PageHeader, PanelPage, Section, ListRow, InfoRow, StatGrid, StatCard, Avatar, StarRating, Badge,
-  Button, ConfirmDialog, EmptyState, NotFoundState,
+  Button, ConfirmDialog, EmptyState, NotFoundState, LevelBadge, KebabMenu,
 } from "@/components/ui";
+import { LineChart } from "@/components/ui/LineChart";
+import { TrilhaMarcos } from "@/components/ui/TrilhaMarcos";
+import { mediaNotas, progresso, proximoPremio, aulasFrequentadas, conquistasDoAluno, UNIDADE_LABEL } from "@/lib/gamificacao";
+import { cn } from "@/lib/cn";
 import {
-  useStore, selectAlunos, selectNiveis, selectPremios, selectFeedbacks, selectProfessores, selectAulas,
-  selectPremiacoes, selectAvaliacoes, selectAlunoCreds, selectTurmas,
+  useStore, selectAlunos, selectNiveis, selectTabela, selectFeedbacks, selectProfessores, selectAulas,
+  selectLancamentos, selectAvaliacoes, selectAlunoCreds, selectTurmas, selectPrograma, selectCriterios,
 } from "@/lib/store";
 import { formatDate, toLocalISODate } from "@/lib/date";
 import { toast } from "@/components/Toast";
+
+type Periodo = "30" | "90" | "180" | "tudo";
+const PERIODOS: { v: Periodo; l: string }[] = [
+  { v: "30", l: "30 dias" },
+  { v: "90", l: "3 meses" },
+  { v: "180", l: "6 meses" },
+  { v: "tudo", l: "Tudo" },
+];
+const fmt = (v: number) => v.toFixed(1).replace(".", ",");
 
 export default function PainelAlunoPage() {
   const { id } = useParams<{ id: string }>();
   const alunos = useStore(selectAlunos);
   const niveis = useStore(selectNiveis);
-  const premios = useStore(selectPremios);
+  const tabela = useStore(selectTabela);
   const feedbacks = useStore(selectFeedbacks);
   const professores = useStore(selectProfessores);
   const turmas = useStore(selectTurmas);
   const aulas = useStore(selectAulas);
-  const premiacoes = useStore(selectPremiacoes);
+  const lancamentos = useStore(selectLancamentos);
   const avaliacoes = useStore(selectAvaliacoes);
   const alunoCreds = useStore(selectAlunoCreds);
+  const programa = useStore(selectPrograma);
+  const criterios = useStore(selectCriterios);
   const addFeedback = useStore((s) => s.addFeedback);
   const deleteFeedback = useStore((s) => s.deleteFeedback);
 
@@ -34,6 +49,9 @@ export default function PainelAlunoPage() {
   const [showSenha, setShowSenha] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [delFeedbackId, setDelFeedbackId] = useState<string | null>(null);
+  const [periodo, setPeriodo] = useState<Periodo>("90");
+  const [verTodasConquistas, setVerTodasConquistas] = useState(false);
+  const [verTodoHistorico, setVerTodoHistorico] = useState(false);
 
   // Hooks sempre antes de qualquer return (regra dos hooks).
   const aluno = alunos.find((a) => a.id === id);
@@ -45,23 +63,52 @@ export default function PainelAlunoPage() {
     () => avaliacoes.filter((av) => av.alunoId === id).sort((a, b) => b.data.localeCompare(a.data)),
     [avaliacoes, id],
   );
-  const minhasPremiacoes = useMemo(
-    () => premiacoes.filter((p) => p.alunoId === id).sort((a, b) => b.data.localeCompare(a.data)),
-    [premiacoes, id],
+  const meusLancamentos = useMemo(
+    () => lancamentos.filter((l) => l.alunoId === id).sort((a, b) => b.registradoEm.localeCompare(a.registradoEm) || b.id.localeCompare(a.id)),
+    [lancamentos, id],
   );
-  const starsReais = useMemo(
-    () => aulas.map((au) => au.stars?.[id]).filter((v): v is number => typeof v === "number" && v > 0),
+  /** Aulas em que o aluno tem registro (presente ou falta), em ordem cronológica. */
+  const minhasAulas = useMemo(
+    () => aulas.filter((au) => au.presenca[id] !== undefined).sort((a, b) => a.data.localeCompare(b.data)),
     [aulas, id],
   );
+  const noPeriodo = useMemo(() => {
+    if (periodo === "tudo") return minhasAulas;
+    const d = new Date();
+    d.setDate(d.getDate() - Number(periodo));
+    const corte = toLocalISODate(d);
+    return minhasAulas.filter((au) => au.data >= corte);
+  }, [minhasAulas, periodo]);
 
   if (!aluno) return <NotFoundState title="Aluno não encontrado" backHref="/alunos" backLabel="Voltar para Alunos" />;
 
   const nivel = niveis.find((n) => n.id === aluno.nivelId);
-  const proximo = [...niveis].sort((a, b) => a.pontosMin - b.pontosMin).find((n) => n.pontosMin > aluno.pontos);
   const turma = turmas.find((t) => t.alunosIds.includes(aluno.id));
-  const mediaStars = starsReais.length ? Math.round(starsReais.reduce((a, b) => a + b, 0) / starsReais.length) : 0;
-  const progresso = nivel ? Math.min(100, Math.max(0, ((aluno.pontos - nivel.pontosMin) / Math.max(1, nivel.pontosMax - nivel.pontosMin)) * 100)) : 0;
   const creds = alunoCreds.find((c) => c.alunoId === aluno.id) ?? { user: aluno.email.split("@")[0], senha: "—" };
+
+  // Vertente 2: corrida
+  const unidade = UNIDADE_LABEL[programa.unidade];
+  const atual = progresso(programa.unidade, aluno, aulas);
+  const prox = proximoPremio(tabela, atual);
+  // Conquistas calculadas do histórico + tabela (mais recentes primeiro). Não há cadastro manual.
+  const conquistas = [...conquistasDoAluno(tabela, programa.unidade, aluno, aulas)].reverse();
+
+  // Vertente 1: presença e avaliações (só critérios com nota contam)
+  const presencas = aulasFrequentadas(minhasAulas, aluno.id);
+  const presentesPeriodo = noPeriodo.filter((au) => au.presenca[aluno.id]);
+  const criteriosUsados = criterios.filter((c) => c.ativo || presentesPeriodo.some((au) => au.notas[aluno.id]?.[c.id] !== undefined));
+  const ativosIds = criterios.filter((c) => c.ativo).map((c) => c.id);
+  const serieMedia = presentesPeriodo.map((au) => ({ data: au.data, valor: mediaNotas(au.notas[aluno.id], ativosIds) }));
+  const mediasValidas = serieMedia.map((p) => p.valor).filter((v): v is number => v != null);
+  const mediaGeral = mediasValidas.length ? mediasValidas.reduce((a, b) => a + b, 0) / mediasValidas.length : null;
+  const observacoes = [...minhasAulas].reverse().filter((au) => au.observacao[aluno.id]);
+
+  // Vertente 3: histórico de nível (só quando muda)
+  const historicoNivel: { data: string; nivelId: string }[] = [];
+  minhasAulas.forEach((au) => {
+    const n = au.nivel[aluno.id];
+    if (n && historicoNivel[historicoNivel.length - 1]?.nivelId !== n) historicoNivel.push({ data: au.data, nivelId: n });
+  });
 
   const submitFeedback = () => {
     const texto = novoTexto.trim();
@@ -96,12 +143,11 @@ export default function PainelAlunoPage() {
       />
 
       <StatGrid>
-        <StatCard label="Pontos" value={aluno.pontos} hint={proximo ? `${proximo.pontosMin - aluno.pontos} para ${proximo.nome}` : "Nível máximo"} />
-        <StatCard label="Média nas aulas" value={mediaStars ? `${mediaStars}/5` : "—"} hint={`${starsReais.length} aulas avaliadas`} />
-        <StatCard label="Avaliações" value={minhasAvaliacoes.length} hint="de desempenho" />
-        <StatCard label="Premiações" value={minhasPremiacoes.length} hint="recebidas" />
+        <StatCard label={programa.unidade === "pontos" ? "Nível de gamificação" : "Aulas frequentadas"} value={atual} hint={prox ? `faltam ${prox.nivel - atual} para ${prox.nome}` : "sem próximo prêmio configurado"} />
+        <StatCard label="Presença" value={minhasAulas.length ? `${Math.round((presencas / minhasAulas.length) * 100)}%` : "—"} hint={`${presencas} de ${minhasAulas.length} aulas`} />
+        <StatCard label="Média nas aulas" value={mediaGeral != null ? fmt(mediaGeral) : "—"} hint={PERIODOS.find((p) => p.v === periodo)?.l} />
+        <StatCard label="Prêmios" value={conquistas.length} hint="conquistados" />
       </StatGrid>
-
       <Section flush title="Dados do aluno">
         <ListRow>
           <Avatar src={aluno.avatar} alt="" size={56} />
@@ -119,14 +165,152 @@ export default function PainelAlunoPage() {
         </InfoRow>
       </Section>
 
-      {nivel && (
-        <Section title="Evolução no nível" description={`${nivel.nome}: ${nivel.pontosMin}–${nivel.pontosMax} pts`}>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={Math.round(progresso)} aria-valuemin={0} aria-valuemax={100} aria-label="Progresso no nível">
-            <div className="h-full rounded-full bg-brand-lime2" style={{ width: `${progresso}%` }} />
+      {/* Vertente 2: nível de gamificação */}
+      <Section
+        title="Nível de gamificação"
+        description={programa.unidade === "pontos" ? `Programa ${programa.nome}: cada ponto acumulado é um nível. Não tem relação com a bola.` : `Programa ${programa.nome}: cada aula frequentada é um nível. Não tem relação com a bola.`}
+      >
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="font-display text-3xl font-bold tabular-nums text-brand">Nível {atual}</span>
+          <span className="text-right text-xs text-ink-500">
+            {prox ? <>Próximo marco de gamificação: <b className="text-ink-900">{prox.nome}</b> no nível {prox.nivel}</> : "Nenhum prêmio configurado à frente"}
+          </span>
+        </div>
+        <div className="mt-4"><TrilhaMarcos tabela={tabela} atual={atual} /></div>
+      </Section>
+
+      <Section flush title="Conquistas" description="Calculadas a partir do histórico de pontos e da tabela de níveis. Se um lançamento for corrigido, a lista se ajusta sozinha.">
+        {conquistas.length === 0 ? (
+          <EmptyState compact icon={Trophy} title="Nenhuma conquista ainda" />
+        ) : (
+          <>
+            {(verTodasConquistas ? conquistas : conquistas.slice(0, 8)).map((c) => (
+              <ListRow key={c.nivel}>
+                <Award size={20} className="shrink-0 text-brand-yellow" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-ink-900">{c.premio.nome}</div>
+                  <div className="truncate text-xs text-ink-500">
+                    Nível {c.nivel} · {c.data ? formatDate(c.data) : "antes do app"}
+                  </div>
+                </div>
+              </ListRow>
+            ))}
+            {conquistas.length > 8 && (
+              <div className="px-5 py-3 sm:px-6">
+                <button type="button" className="text-sm font-semibold text-brand-green hover:underline" onClick={() => setVerTodasConquistas((v) => !v)}>
+                  {verTodasConquistas ? "Mostrar menos" : `Ver todas (${conquistas.length})`}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </Section>
+
+      <Section flush title="Histórico de pontos" description="Lançamentos por aula e ajustes. Correções guardam o valor anterior e o corrigido.">
+        {meusLancamentos.length === 0 ? (
+          <EmptyState compact icon={History} title="Nenhum ponto lançado ainda" />
+        ) : (
+          <>
+            {(verTodoHistorico ? meusLancamentos : meusLancamentos.slice(0, 8)).map((l) => {
+              const correcao = l.tipo === "aula" && l.anterior !== null;
+              return (
+                <ListRow key={l.id}>
+                  <div className={cn(
+                    "grid h-9 w-9 shrink-0 place-items-center rounded-full font-display text-sm font-bold tabular-nums",
+                    correcao || l.tipo === "ajuste" ? "bg-brand-yellow/15 text-ink-900" : "bg-brand-tint text-brand-dark"
+                  )}>
+                    {l.tipo === "ajuste" ? "=" : `+${l.valor}`}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-ink-900">
+                      {l.tipo === "ajuste"
+                        ? `Ajuste do total: ${l.anterior ?? 0} → ${l.valor}`
+                        : correcao
+                          ? `Correção: ${l.anterior} → ${l.valor} ponto${l.valor === 1 ? "" : "s"}`
+                          : `${l.valor} ponto${l.valor === 1 ? "" : "s"} na aula`}
+                    </div>
+                    <div className="truncate text-xs text-ink-500">
+                      {l.tipo === "aula" ? `Aula de ${formatDate(l.data)}` : formatDate(l.data)}
+                      {correcao && ` · corrigido em ${new Date(l.registradoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}`}
+                    </div>
+                  </div>
+                  {correcao && <Badge color="yellow">Corrigido</Badge>}
+                </ListRow>
+              );
+            })}
+            {meusLancamentos.length > 8 && (
+              <div className="px-5 py-3 sm:px-6">
+                <button type="button" className="text-sm font-semibold text-brand-green hover:underline" onClick={() => setVerTodoHistorico((v) => !v)}>
+                  {verTodoHistorico ? "Mostrar menos" : `Ver todo o histórico (${meusLancamentos.length})`}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </Section>
+
+      {/* Vertente 3: nível técnico */}
+      <Section flush title="Nível técnico" description="Bola em que o aluno está. Não altera notas nem pontos.">
+        <ListRow>
+          {nivel ? <LevelBadge cor={nivel.cor} nome={nivel.nome} imagem={nivel.imagem} /> : <span className="text-sm text-ink-500">Sem nível definido</span>}
+        </ListRow>
+        {historicoNivel.length > 1 &&
+          [...historicoNivel].reverse().map((h) => {
+            const n = niveis.find((x) => x.id === h.nivelId);
+            return (
+              <ListRow key={h.data}>
+                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: n?.cor ?? "#ccc" }} />
+                <span className="min-w-0 flex-1 truncate text-sm text-ink-900">{n?.nome ?? "Nível removido"}</span>
+                <span className="text-xs tabular-nums text-ink-500">desde {formatDate(h.data)}</span>
+              </ListRow>
+            );
+          })}
+      </Section>
+
+      {/* Vertente 1: evolução das avaliações das aulas */}
+      <Section
+        title="Evolução nas aulas"
+        description="Média calculada só com os critérios ativos e preenchidos. Aulas sem nota quebram a linha."
+        action={
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Período">
+            {PERIODOS.map((p) => (
+              <button key={p.v} type="button" aria-pressed={periodo === p.v} onClick={() => setPeriodo(p.v)}
+                className={cn("h-8 rounded-pill px-3 text-xs font-semibold transition-colors", periodo === p.v ? "bg-brand-tint text-brand-dark" : "text-ink-500 hover:bg-soft")}>
+                {p.l}
+              </button>
+            ))}
           </div>
-          <div className="mt-2 text-xs text-ink-500">{Math.round(progresso)}% do nível concluído</div>
-        </Section>
-      )}
+        }
+      >
+        {presentesPeriodo.length === 0 ? (
+          <EmptyState compact icon={LineIcon} title="Sem aulas no período" />
+        ) : (
+          <div className="space-y-8">
+            <LineChart titulo="Média da aula" pontos={serieMedia} />
+            {criteriosUsados.map((c) => (
+              <LineChart
+                key={c.id}
+                titulo={c.ativo ? c.nome : `${c.nome} (inativo)`}
+                pontos={presentesPeriodo.map((au) => ({ data: au.data, valor: au.notas[aluno.id]?.[c.id] ?? null }))}
+                formatar={(v) => String(v)}
+              />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section flush title="Observações das aulas" description="Anotações qualitativas; não entram na média.">
+        {observacoes.length === 0 ? (
+          <EmptyState compact icon={NotebookPen} title="Nenhuma observação registrada" />
+        ) : (
+          observacoes.slice(0, 12).map((au) => (
+            <div key={au.id} className="px-5 py-3 sm:px-6">
+              <div className="text-xs font-semibold text-ink-500">{formatDate(au.data, { day: "2-digit", month: "long", year: "numeric" })}</div>
+              <p className="mt-1 text-sm text-ink-700">{au.observacao[aluno.id]}</p>
+            </div>
+          ))
+        )}
+      </Section>
 
       <Section
         flush
@@ -137,8 +321,7 @@ export default function PainelAlunoPage() {
           <EmptyState compact icon={ClipboardCheck} title="Nenhuma avaliação registrada" action={<Link href={`/alunos/${aluno.id}/avaliacao/novo`} className="btn-outline">Registrar avaliação</Link>} />
         ) : (
           minhasAvaliacoes.map((av) => {
-            const vals = Object.values(av.scores);
-            const media = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+            const media = Math.round(mediaNotas(av.scores) ?? 0);
             return (
               <ListRow key={av.id}>
                 <div className="min-w-0 flex-1">
@@ -149,38 +332,6 @@ export default function PainelAlunoPage() {
               </ListRow>
             );
           })
-        )}
-      </Section>
-
-      <Section flush title="Prêmios" description="Conquistados pela pontuação atual e premiações recebidas.">
-        {premios.length === 0 && minhasPremiacoes.length === 0 ? (
-          <EmptyState compact icon={Trophy} title="Nenhum prêmio cadastrado" />
-        ) : (
-          <>
-            {[...premios].sort((a, b) => a.pontosNecessarios - b.pontosNecessarios).map((p) => {
-              const got = aluno.pontos >= p.pontosNecessarios;
-              return (
-                <ListRow key={p.id}>
-                  <Trophy size={20} className={got ? "text-brand-yellow" : "text-ink-300"} />
-                  <div className="min-w-0 flex-1">
-                    <div className={`truncate text-sm font-semibold ${got ? "text-ink-900" : "text-ink-500"}`}>{p.nome}</div>
-                    <div className="text-xs tabular-nums text-ink-500">{p.pontosNecessarios} pts</div>
-                  </div>
-                  {got ? <Badge color="lime"><Check size={12} className="mr-1" /> Conquistado</Badge> : <span className="text-xs tabular-nums text-ink-500">faltam {p.pontosNecessarios - aluno.pontos} pts</span>}
-                </ListRow>
-              );
-            })}
-            {minhasPremiacoes.map((pm) => (
-              <ListRow key={pm.id}>
-                <Trophy size={20} className="text-brand-yellow" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-ink-900">{premios.find((p) => p.id === pm.premioId)?.nome ?? "Prêmio removido"}</div>
-                  <div className="text-xs text-ink-500">Premiação em {formatDate(pm.data)}</div>
-                </div>
-                <Badge color="yellow">Premiação</Badge>
-              </ListRow>
-            ))}
-          </>
         )}
       </Section>
 
@@ -269,6 +420,7 @@ export default function PainelAlunoPage() {
         onCancel={() => setDelFeedbackId(null)}
         onConfirm={() => { if (delFeedbackId) { deleteFeedback(delFeedbackId); toast.success("Feedback excluído"); } setDelFeedbackId(null); }}
       />
+
     </PanelPage>
   );
 }

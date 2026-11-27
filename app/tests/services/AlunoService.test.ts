@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { AlunoService } from '@/lib/services';
 import { resetState } from '@/lib/repositories/mock/store-bridge';
 import { useStore } from '@/lib/store';
-import type { Aluno, Turma, Feedback, Premiacao, Avaliacao, Aula, AlunoCred } from '@/lib/types';
+import type { Aluno, Turma, Feedback, LancamentoPonto, Avaliacao, Aula, AlunoCred } from '@/lib/types';
 
 const baseAluno = (over: Partial<Aluno> = {}): Aluno => ({
   id: 'a-test',
@@ -23,7 +23,7 @@ beforeEach(() => {
     { id: 't1', nome: 'T1', diaSemana: 'Segunda', horario: '08:00', professorId: 'p1', alunosIds: ['a1'], nivelId: 'n1' },
   ];
   const feedbacks: Feedback[] = [{ id: 'f1', alunoId: 'a1', professorId: 'p1', data: '2026-01-01', texto: 'x' }];
-  const premiacoes: Premiacao[] = [{ id: 'pm1', alunoId: 'a1', premioId: 'pr1', data: '2026-01-01' }];
+  const lancamentos: LancamentoPonto[] = [{ id: 'lp1', alunoId: 'a1', tipo: 'aula', aulaId: 'au1', data: '2026-01-01', anterior: null, valor: 1, registradoEm: '2026-01-01T12:00:00Z' }];
   const avaliacoes: Avaliacao[] = [{ id: 'av1', alunoId: 'a1', data: '2026-01-01', scores: {} }];
   const aulas: Aula[] = [];
   const alunoCreds: AlunoCred[] = [{ alunoId: 'a1', user: 'a1', senha: 'x' }];
@@ -32,11 +32,11 @@ beforeEach(() => {
     turmas,
     professores: [],
     niveis: [],
-    premios: [],
+    tabela: { tamanhoBloco: 16, faixas: [], niveis: {} },
     criterios: [],
     feedbacks,
     aulas,
-    premiacoes,
+    lancamentos,
     avaliacoes,
     alunoCreds,
   });
@@ -54,13 +54,13 @@ describe('AlunoService', () => {
     expect(r.error).toMatch(/já cadastrado/);
   });
 
-  it('delete aluno faz cascata em turmas/premiacoes/avaliacoes/feedbacks', () => {
+  it('delete aluno faz cascata em turmas/lancamentos/avaliacoes/feedbacks', () => {
     AlunoService.delete('a1');
     const s = useStore.getState();
     expect(s.alunos.find((a) => a.id === 'a1')).toBeUndefined();
     expect(s.turmas[0].alunosIds).not.toContain('a1');
     expect(s.feedbacks.find((f) => f.alunoId === 'a1')).toBeUndefined();
-    expect(s.premiacoes.find((p) => p.alunoId === 'a1')).toBeUndefined();
+    expect(s.lancamentos.find((l) => l.alunoId === 'a1')).toBeUndefined();
     expect(s.avaliacoes.find((a) => a.alunoId === 'a1')).toBeUndefined();
   });
 });

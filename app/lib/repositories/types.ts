@@ -4,8 +4,8 @@ import type {
   Professor,
   Nivel,
   Avaliacao,
-  Premio,
-  Premiacao,
+  TabelaNiveis,
+  LancamentoPonto,
   Aula,
   Feedback,
   CriterioAvaliacao,
@@ -50,16 +50,15 @@ export interface AvaliacaoRepository {
   remove(id: string): void;
 }
 
-export interface PremioRepository {
-  list(): Premio[];
-  add(p: Premio): void;
-  remove(id: string): void;
+export interface TabelaNiveisRepository {
+  get(): TabelaNiveis;
+  set(t: TabelaNiveis): void;
 }
 
-export interface PremiacaoRepository {
-  list(): Premiacao[];
-  add(p: Premiacao): void;
-  remove(id: string): void;
+/** Histórico de pontos: só acrescenta, nunca edita nem apaga (exceto na exclusão do aluno). */
+export interface LancamentoRepository {
+  list(): LancamentoPonto[];
+  add(l: LancamentoPonto): void;
 }
 
 export interface AulaRepository {

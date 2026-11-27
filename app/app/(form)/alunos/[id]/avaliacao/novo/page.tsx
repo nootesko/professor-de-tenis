@@ -1,5 +1,6 @@
 "use client";
-import { FormPage, FormSection, StarRating } from "@/components/ui";
+import { FormPage, FormSection } from "@/components/ui";
+import { NotaCriterio } from "@/components/ui/NotaCriterio";
 import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/lib/store";
 import { toLocalISODate } from "@/lib/date";
@@ -18,8 +19,8 @@ export default function NovaAvaliacaoPage() {
 
   if (!aluno) return <div className="p-8">Aluno não encontrado</div>;
 
-  const grouped = criterios.reduce((acc, c) => {
-    (acc[c.categoria] ||= []).push(c);
+  const grouped = criterios.filter((c) => c.ativo).reduce((acc, c) => {
+    (acc[c.categoria ?? "Critérios"] ||= []).push(c);
     return acc;
   }, {} as Record<string, typeof criterios>);
 
@@ -52,10 +53,17 @@ export default function NovaAvaliacaoPage() {
       {Object.entries(grouped).map(([cat, list]) => (
         <FormSection key={cat} title={cat}>
           {list.map((c) => (
-            <div key={c.id} className="flex items-center justify-between border-b border-line pb-2 last:border-0">
-              <div className="text-sm">{c.nome}</div>
-              <StarRating value={scores[c.id] || 0} onChange={(v) => setScores({ ...scores, [c.id]: v })} />
-            </div>
+            <NotaCriterio
+              key={c.id}
+              label={c.nome}
+              value={scores[c.id]}
+              onChange={(v) => {
+                const next = { ...scores };
+                if (v === undefined) delete next[c.id];
+                else next[c.id] = v;
+                setScores(next);
+              }}
+            />
           ))}
         </FormSection>
       ))}

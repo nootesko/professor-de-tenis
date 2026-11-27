@@ -7,12 +7,14 @@ export function Input({
   label,
   className,
   error,
+  hint,
   required,
   ...props
-}: { label?: string; error?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+}: { label?: string; error?: string; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   const autoId = useId();
   const id = props.id ?? autoId;
   const errId = `${id}-erro`;
+  const hintId = `${id}-dica`;
   return (
     <div className={cn('w-full', className)}>
       {label && (
@@ -26,10 +28,14 @@ export function Input({
         id={id}
         required={required}
         aria-invalid={!!error}
-        aria-describedby={error ? errId : undefined}
+        aria-describedby={error ? errId : hint ? hintId : undefined}
         className={cn('input', error && 'border-red-500 focus:border-red-500 focus:ring-red-200')}
       />
-      {error && <p id={errId} className="mt-1 text-xs font-medium text-red-600">{error}</p>}
+      {error ? (
+        <p id={errId} className="mt-1 text-xs font-medium text-red-600">{error}</p>
+      ) : (
+        hint && <p id={hintId} className="mt-1 text-xs text-ink-500">{hint}</p>
+      )}
     </div>
   );
 }

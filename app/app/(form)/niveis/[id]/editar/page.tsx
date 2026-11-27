@@ -17,14 +17,12 @@ export default function EditarNivelPage() {
       nome: n?.nome ?? "",
       descricao: n?.descricao ?? "",
       cor: n?.cor ?? "#edbe16",
-      pontosMin: String(n?.pontosMin ?? 0),
-      pontosMax: String(n?.pontosMax ?? 100),
+      ordem: n?.ordem != null ? String(n.ordem) : "",
     },
     {
       nome: { validators: [V.required(), V.minLen(2)] },
       descricao: { validators: [V.required()] },
-      pontosMin: { validators: [V.required(), V.numRange(0, 99999)] },
-      pontosMax: { validators: [V.required(), V.numRange(0, 99999)] },
+      ordem: { validators: [V.numRange(0, 99)] },
     }
   );
 
@@ -32,7 +30,7 @@ export default function EditarNivelPage() {
 
   const submit = () => {
     if (!validateAll()) return;
-    updateNivel(n.id, { ...n, ...values, pontosMin: Number(values.pontosMin), pontosMax: Number(values.pontosMax), imagem });
+    updateNivel(n.id, { ...n, nome: values.nome, descricao: values.descricao, cor: values.cor, ordem: values.ordem ? Number(values.ordem) : undefined, imagem });
     router.push("/niveis");
   };
 
@@ -59,8 +57,7 @@ export default function EditarNivelPage() {
         </div>
         <Input label="Nome" required {...fieldProps("nome")} />
         <Input label="Descrição" required {...fieldProps("descricao")} />
-        <Input label="Pontos mínimos" required type="number" min={0} {...fieldProps("pontosMin")} />
-        <Input label="Pontos máximos" required type="number" min={0} {...fieldProps("pontosMax")} />
+        <Input label="Ordem na progressão" type="number" min={0} placeholder="1" hint="Só para ordenar as bolas. Não tem relação com pontos." {...fieldProps("ordem")} />
       </FormSection>
     </FormPage>
   );

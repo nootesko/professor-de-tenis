@@ -28,11 +28,11 @@ beforeEach(() => {
     turmas,
     professores: [],
     niveis: [],
-    premios: [],
+    tabela: { tamanhoBloco: 16, faixas: [], niveis: {} },
     criterios: [],
     feedbacks: [],
     aulas: [],
-    premiacoes: [],
+    lancamentos: [],
     avaliacoes: [],
     alunoCreds: [],
   });

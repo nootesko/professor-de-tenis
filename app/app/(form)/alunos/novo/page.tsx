@@ -187,7 +187,7 @@ export default function CadastrarAlunoPage() {
               );
             })}
           </Select>
-          <Input label="Pontos iniciais" type="number" min={0} {...fieldProps("pontos")} />
+          <Input label="Pontos iniciais" type="number" min={0} hint="Saldo de antes do app. Entra no histórico como ajuste." {...fieldProps("pontos")} />
         </FormSection>
       )}
 

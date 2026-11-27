@@ -31,8 +31,8 @@ export default function AvaliacoesAlunoPage() {
       ) : (
         lista.map((av) => (
           <Section key={av.id} flush title={formatDate(av.data, { day: "2-digit", month: "long", year: "numeric" })} description={av.observacoes}>
-            {criterios.map((c) => (
-              <InfoRow key={c.id} label={c.nome}><StarRating value={av.scores[c.id] || 0} /></InfoRow>
+            {criterios.filter((c) => av.scores[c.id] !== undefined).map((c) => (
+              <InfoRow key={c.id} label={c.nome}><StarRating value={av.scores[c.id]} /></InfoRow>
             ))}
           </Section>
         ))

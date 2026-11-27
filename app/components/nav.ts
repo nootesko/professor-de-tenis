@@ -11,7 +11,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: '/alunos', label: 'Alunos', icon: Users },
       { href: '/professores', label: 'Professores', icon: GraduationCap },
       { href: '/turmas', label: 'Turmas', icon: Layers },
-      { href: '/niveis', label: 'Níveis', icon: Star },
+      { href: '/niveis', label: 'Bolas', icon: Star },
     ],
   },
   {
@@ -31,7 +31,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   alunos: 'Alunos',
   professores: 'Professores',
   turmas: 'Turmas',
-  niveis: 'Níveis',
+  niveis: 'Bolas',
   premios: 'Prêmios',
   avaliacoes: 'Avaliações',
   perfil: 'Meu perfil',

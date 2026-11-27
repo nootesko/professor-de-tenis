@@ -88,7 +88,7 @@ export default function NovaTurmaPage() {
           {HORARIOS.map((s) => <option key={s.inicio} value={s.inicio}>{s.label}</option>)}
         </Select>
         <Input label="Vagas Disponíveis" required type="number" min={1} max={100} {...fieldProps("vagas")} />
-        <Select label="Nível" required value={values.nivelId} onChange={(e) => setValues({ ...values, nivelId: e.target.value })}>
+        <Select label="Bola" required value={values.nivelId} onChange={(e) => setValues({ ...values, nivelId: e.target.value })}>
           {niveis.map((n) => <option key={n.id} value={n.id}>{n.nome}</option>)}
         </Select>
       </FormSection>

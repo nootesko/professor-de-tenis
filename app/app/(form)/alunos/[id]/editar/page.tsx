@@ -91,8 +91,8 @@ export default function EditarAlunoPage() {
         <Input label="E-mail" required type="email" {...fieldProps("email")} error={emailErr ?? fieldProps("email").error} />
         <Input label="Telefone" required inputMode="numeric" placeholder="(11) 98888-4474" {...fieldProps("telefone")} />
         <Input label="Data de Nascimento" type="date" {...fieldProps("nascimento")} />
-        <Input label="Pontos" type="number" min={0} {...fieldProps("pontos")} />
-        <Select label="Nível" value={values.nivelId} onChange={(e) => setValues({ ...values, nivelId: e.target.value })}>
+        <Input label="Pontos acumulados (nível de gamificação)" type="number" min={0} hint="Alterar aqui registra um ajuste no histórico de pontos, com o valor anterior e o novo. Para pontos de aula, corrija a chamada." {...fieldProps("pontos")} />
+        <Select label="Bola (nível técnico)" value={values.nivelId} onChange={(e) => setValues({ ...values, nivelId: e.target.value })}>
           {niveis.map((n) => <option key={n.id} value={n.id}>{n.nome}</option>)}
         </Select>
         <Select label="Status" value={values.status} onChange={(e) => setValues({ ...values, status: e.target.value as any })}>

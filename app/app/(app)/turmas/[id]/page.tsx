@@ -42,7 +42,7 @@ export default function TurmaDetalhePage() {
       <StatGrid>
         <StatCard label="Alunos" value={lista.length} hint={`${turma.vagas ?? "—"} vagas`} />
         <StatCard label="Aulas dadas" value={aulasDaTurma} />
-        <StatCard label="Nível" value={nivel?.nome ?? "—"} />
+        <StatCard label="Bola" value={nivel?.nome ?? "—"} />
         <StatCard label="Média de pontos" value={lista.length ? Math.round(lista.reduce((a, b) => a + b.pontos, 0) / lista.length) : "—"} />
       </StatGrid>
       <Section flush title="Informações">
@@ -51,7 +51,7 @@ export default function TurmaDetalhePage() {
         <InfoRow label="Professor" icon={<GraduationCap size={14} />}>
           {prof ? <Link href={`/professores/${prof.id}`} className="text-brand hover:underline">{prof.nome}</Link> : "Sem professor"}
         </InfoRow>
-        <InfoRow label="Nível" icon={<Star size={14} />}>{nivel?.nome ?? "—"}</InfoRow>
+        <InfoRow label="Bola" icon={<Star size={14} />}>{nivel?.nome ?? "—"}</InfoRow>
       </Section>
       <Section flush title="Alunos matriculados" description="Presença e pontos são lançados em “Fazer chamada”.">
         {lista.length === 0 ? (

@@ -14,12 +14,12 @@ type Result = {
   href: string;
   label: string;
   sub?: string;
-  group: "Alunos" | "Professores" | "Turmas" | "Níveis";
+  group: "Alunos" | "Professores" | "Turmas" | "Bolas";
   avatar?: string;
   icon?: React.ReactNode;
 };
 
-const GROUP_ORDER: Result["group"][] = ["Alunos", "Professores", "Turmas", "Níveis"];
+const GROUP_ORDER: Result["group"][] = ["Alunos", "Professores", "Turmas", "Bolas"];
 
 export default function Topbar() {
   const router = useRouter();
@@ -51,7 +51,7 @@ export default function Topbar() {
     });
     niveis.forEach((n) => {
       if (n.nome.toLowerCase().includes(term))
-        out.push({ id: n.id, href: `/niveis/${n.id}`, label: n.nome, group: "Níveis", icon: <Trophy size={16} /> });
+        out.push({ id: n.id, href: `/niveis/${n.id}`, label: n.nome, group: "Bolas", icon: <Trophy size={16} /> });
     });
     return out.slice(0, 20);
   }, [q, alunos, professores, turmas, niveis]);
